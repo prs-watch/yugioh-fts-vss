@@ -27,7 +27,6 @@ DISPLAY_COLUMNS = [
     "レベル/ランク",
     "スケール",
     "リンク",
-    "検索スコア",
 ]
 
 
@@ -110,7 +109,8 @@ def __fts(tokens, limit):
         fts_main_cards.match_bm25(id, $q, conjunctive := 1) AS bm25_score
     FROM cards
     WHERE name_ja IS NOT NULL
-      AND text_ja IS NOT NULL
+    AND text_ja IS NOT NULL
+    AND text_ja <> ''
     ),
     raw AS (
     SELECT
@@ -123,17 +123,12 @@ def __fts(tokens, limit):
         COALESCE(CAST(CAST(ROUND(def, 0) AS BIGINT) AS VARCHAR), '✕') AS def,
         COALESCE(CAST(CAST(ROUND(level, 0) AS BIGINT) AS VARCHAR), '✕') AS level,
         COALESCE(CAST(CAST(ROUND(scale, 0) AS BIGINT) AS VARCHAR), '✕') AS scale,
-        COALESCE(CAST(CAST(ROUND(linkval, 0) AS BIGINT) AS VARCHAR), '✕') AS linkval,
-        CASE
-            WHEN name_ja = $q THEN 1000
-            WHEN name_ja LIKE '%' || $q || '%' THEN 500
-            ELSE COALESCE(bm25_score, 0)
-        END AS score
+        COALESCE(CAST(CAST(ROUND(linkval, 0) AS BIGINT) AS VARCHAR), '✕') AS linkval
     FROM scored
     WHERE
         name_ja LIKE '%' || $q || '%'
-        OR bm25_score IS NOT NULL
-    ORDER BY score DESC
+    OR bm25_score IS NOT NULL
+    ORDER BY bm25_score DESC
     LIMIT $limit
     )
     SELECT * REPLACE (score / NULLIF(MAX(score) OVER (), 0) AS score)
@@ -174,6 +169,7 @@ def __vss(q, limit):
         FROM cards
         WHERE name_ja IS NOT NULL
         AND text_ja IS NOT NULL
+        AND text_ja <> ''
         AND name_ja LIKE '%' || $text_q || '%'
         LIMIT $limit
         ),
@@ -185,6 +181,7 @@ def __vss(q, limit):
         FROM cards
         WHERE name_ja IS NOT NULL
         AND text_ja IS NOT NULL
+        AND text_ja <> ''
         ORDER BY embeddings <-> CAST($embedding_q AS FLOAT[384])
         LIMIT $limit
         ),
@@ -212,10 +209,14 @@ def __vss(q, limit):
             COALESCE(CAST(CAST(ROUND(def, 0) AS BIGINT) AS VARCHAR), '✕') AS def,
             COALESCE(CAST(CAST(ROUND(level, 0) AS BIGINT) AS VARCHAR), '✕') AS level,
             COALESCE(CAST(CAST(ROUND(scale, 0) AS BIGINT) AS VARCHAR), '✕') AS scale,
-            COALESCE(CAST(CAST(ROUND(linkval, 0) AS BIGINT) AS VARCHAR), '✕') AS linkval,
-            score
+            COALESCE(CAST(CAST(ROUND(linkval, 0) AS BIGINT) AS VARCHAR), '✕') AS linkval
         FROM dedup
         WHERE rn = 1
+        AND  CASE
+            WHEN search_type = 'name' THEN score >= 0.85
+            WHEN search_type = 'vss' THEN score >= 0.65
+            ELSE FALSE
+        END
         ORDER BY score DESC
         LIMIT $limit;
         """,
