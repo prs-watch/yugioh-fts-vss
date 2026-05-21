@@ -9,5 +9,6 @@
   "editor.defaultFormatter": "charliermarsh.ruff",
   "[python]": {
     "editor.defaultFormatter": "charliermarsh.ruff"
-  }
+  },
+  "duckdb.defaultDatabase": "memory"
 }

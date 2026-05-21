@@ -46,9 +46,11 @@ def __init():
             - mode: Sudachi のトークナイズ分割モード (C)
             - model: SentenceTransformer エンコードモデル
     """
+    # init data
     con = duckdb.connect()
     con.execute("CREATE TABLE cards AS SELECT * FROM read_parquet('cards.parquet');")
 
+    # fts / vss prepare
     con.execute("""
     ALTER TABLE cards ADD COLUMN embeddings_tmp FLOAT[384];
     UPDATE cards SET embeddings_tmp = CAST(embeddings AS FLOAT[384]);
@@ -61,7 +63,7 @@ def __init():
     PRAGMA create_fts_index('cards', 'id', 'name_ja', 'fts_text');
     
     INSTALL vss; LOAD vss;
-    CREATE INDEX IF NOT EXISTS cards_embeddings_idx ON cards USING HNSW (embeddings) WITH (metric = 'cosine');
+    CREATE INDEX IF NOT EXISTS cards_embeddings_idx ON cards USING HNSW (embeddings) WITH (metric = 'cosine', ef_search = 200);
     """)
 
     dic = dictionary.Dictionary().create()
@@ -76,7 +78,7 @@ con, dic, mode, model = __init()
 
 @lru_cache(maxsize=256)
 def _encode(q: str):
-    return model.encode(q)
+    return model.encode(q, normalize_embeddings=True)
 
 
 @lru_cache(maxsize=256)
@@ -102,32 +104,41 @@ def __fts(tokens, limit):
 
     df = con.sql(
         """
-    WITH raw AS (
-        SELECT
-            name_ja,
-            text_ja,
-            frame_type,
-            COALESCE(race, '✕') AS race,
-            COALESCE(attribute, '✕') AS attribute,
-            COALESCE(CAST(CAST(ROUND(atk, 0) AS BIGINT) AS VARCHAR), '✕') AS atk,
-            COALESCE(CAST(CAST(ROUND(def, 0) AS BIGINT) AS VARCHAR), '✕') AS def,
-            COALESCE(CAST(CAST(ROUND(level, 0) AS BIGINT) AS VARCHAR), '✕') AS level,
-            COALESCE(CAST(CAST(ROUND(scale, 0) AS BIGINT) AS VARCHAR), '✕') AS scale,
-            COALESCE(CAST(CAST(ROUND(linkval, 0) AS BIGINT) AS VARCHAR), '✕') AS linkval,
-            fts_main_cards.match_bm25(id, $q, conjunctive := 1) AS score
-        FROM
-            cards
-        WHERE
-            name_ja IS NOT NULL
-        ORDER BY
-            score DESC
-        LIMIT
-            $limit
+    WITH scored AS (
+    SELECT
+        *,
+        fts_main_cards.match_bm25(id, $q, conjunctive := 1) AS bm25_score
+    FROM cards
+    WHERE name_ja IS NOT NULL
+      AND text_ja IS NOT NULL
+    ),
+    raw AS (
+    SELECT
+        name_ja,
+        text_ja,
+        frame_type,
+        COALESCE(race, '✕') AS race,
+        COALESCE(attribute, '✕') AS attribute,
+        COALESCE(CAST(CAST(ROUND(atk, 0) AS BIGINT) AS VARCHAR), '✕') AS atk,
+        COALESCE(CAST(CAST(ROUND(def, 0) AS BIGINT) AS VARCHAR), '✕') AS def,
+        COALESCE(CAST(CAST(ROUND(level, 0) AS BIGINT) AS VARCHAR), '✕') AS level,
+        COALESCE(CAST(CAST(ROUND(scale, 0) AS BIGINT) AS VARCHAR), '✕') AS scale,
+        COALESCE(CAST(CAST(ROUND(linkval, 0) AS BIGINT) AS VARCHAR), '✕') AS linkval,
+        CASE
+            WHEN name_ja = $q THEN 1000
+            WHEN name_ja LIKE '%' || $q || '%' THEN 500
+            ELSE COALESCE(bm25_score, 0)
+        END AS score
+    FROM scored
+    WHERE
+        name_ja LIKE '%' || $q || '%'
+        OR bm25_score IS NOT NULL
+    ORDER BY score DESC
+    LIMIT $limit
     )
     SELECT * REPLACE (score / NULLIF(MAX(score) OVER (), 0) AS score)
     FROM raw
-    ORDER BY score DESC
-    ;
+    ORDER BY score DESC;
     """,
         params={"q": fts_q, "limit": limit},
     ).to_df()
@@ -151,7 +162,46 @@ def __vss(q, limit):
 
     df = con.sql(
         """
-    WITH raw AS (
+        WITH name_hits AS (
+        SELECT
+            *,
+            CASE
+                WHEN name_ja = $text_q THEN 1.0
+                WHEN name_ja LIKE '%' || $text_q || '%' THEN 0.95
+                ELSE 0
+            END AS score,
+            'name' AS search_type
+        FROM cards
+        WHERE name_ja IS NOT NULL
+        AND text_ja IS NOT NULL
+        AND name_ja LIKE '%' || $text_q || '%'
+        LIMIT $limit
+        ),
+        vss_hits AS (
+        SELECT
+            *,
+            GREATEST(0, array_cosine_similarity(embeddings, CAST($embedding_q AS FLOAT[384]))) AS score,
+            'vss' AS search_type
+        FROM cards
+        WHERE name_ja IS NOT NULL
+        AND text_ja IS NOT NULL
+        ORDER BY embeddings <-> CAST($embedding_q AS FLOAT[384])
+        LIMIT $limit
+        ),
+        merged AS (
+        SELECT * FROM name_hits
+        UNION ALL
+        SELECT * FROM vss_hits
+        ),
+        dedup AS (
+        SELECT
+            *,
+            ROW_NUMBER() OVER (
+                PARTITION BY name_ja
+                ORDER BY score DESC
+            ) AS rn
+        FROM merged
+        )
         SELECT
             name_ja,
             text_ja,
@@ -163,22 +213,13 @@ def __vss(q, limit):
             COALESCE(CAST(CAST(ROUND(level, 0) AS BIGINT) AS VARCHAR), '✕') AS level,
             COALESCE(CAST(CAST(ROUND(scale, 0) AS BIGINT) AS VARCHAR), '✕') AS scale,
             COALESCE(CAST(CAST(ROUND(linkval, 0) AS BIGINT) AS VARCHAR), '✕') AS linkval,
-            GREATEST(0, array_cosine_similarity(embeddings, CAST($q AS FLOAT[384]))) AS score
-        FROM
-            cards
-        WHERE
-            name_ja IS NOT NULL
-        ORDER BY
-            embeddings <-> CAST($q AS FLOAT[384])
-        LIMIT
-            $limit
-    )
-    SELECT * REPLACE (score / NULLIF(MAX(score) OVER (), 0) AS score)
-    FROM raw
-    ORDER BY score DESC
-    ;
-    """,
-        params={"q": vss_q, "limit": limit},
+            score
+        FROM dedup
+        WHERE rn = 1
+        ORDER BY score DESC
+        LIMIT $limit;
+        """,
+        params={"text_q": q, "embedding_q": vss_q, "limit": limit},
     ).to_df()
 
     df.columns = DISPLAY_COLUMNS
@@ -216,17 +257,17 @@ def search(q, limit=10):
 st.set_option("client.showErrorDetails", False)
 st.set_page_config(page_title="YUGIOH-FTS-VSS", page_icon="💳", layout="wide")
 
-form = st.container(border=True)
-qcol, limitcol, buttoncol = form.columns([3, 1, 1])
+st.header("💳YUGIOH-FTS-VSS")
 
-q = qcol.text_input("キーワード")
-limit = limitcol.slider("件数", 0, 50, 10)
-with buttoncol:
-    st.write("")  # adjust height
-    button = st.button("検索")
+with st.form("form"):
+    qcol, limitcol, buttoncol = st.columns([3, 1, 1])
 
-result = st.table(search("", limit=0))
+    q = qcol.text_input("キーワード")
+    limit = limitcol.slider("件数", 0, 20, 10)
+    with buttoncol:
+        st.write("")  # adjust height
+        submitted = st.form_submit_button("検索")
 
-if button:
+if submitted and q:
     df = search(q, limit)
-    result.table(df, width="content")
+    st.table(df)
