@@ -55,7 +55,7 @@ FROM dedup
 WHERE rn = 1
 AND CASE
     WHEN search_type = 'name' THEN score >= 0.85
-    WHEN search_type = 'vss' THEN score >= 0.65
+    WHEN search_type = 'vss' THEN score >= 0.7
     ELSE FALSE
 END
 ORDER BY score DESC

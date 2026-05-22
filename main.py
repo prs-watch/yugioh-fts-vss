@@ -3,7 +3,11 @@
 
 DuckDB の FTS (全文検索) と VSS (ベクトル類似度検索) を組み合わせて
 遊戯王カードを日本語で検索できる Streamlit アプリ。
-クエリにOOV (辞書未登録語) が含まれる場合は FTS、そうでない場合は VSS を使用する。
+クエリに OOV (辞書未登録語) が含まれる場合は FTS (BM25)、
+すべて既知語の場合は VSS (コサイン類似度) を使用する。
+
+SQL クエリは sql/fts.sql・sql/vss.sql に外部化されており、
+モジュール起動時に一度だけ読み込まれる。
 """
 
 import duckdb
@@ -49,11 +53,11 @@ ATTRIBUTE_BADGE_MAP = {
 FRAME_TYPE_BADGE_MAP = {
     "魔法": ":green-badge[魔法]",
     "罠": ":red-badge[罠]",
-    "通常モンスター": ":gray-badge[通常]",
+    "通常モンスター": ":primary-badge[通常]",
     "効果モンスター": ":yellow-badge[効果]",
     "融合モンスター": ":violet-badge[融合]",
     "シンクロモンスター": ":orange-badge[シンクロ]",
-    "エクシーズモンスター": ":black-badge[エクシーズ]",
+    "エクシーズモンスター": ":gray-badge[エクシーズ]",
     "リンクモンスター": ":blue-badge[リンク]",
     "儀式モンスター": ":green-badge[儀式]",
     "トークン": ":gray-badge[トークン]",
@@ -61,7 +65,7 @@ FRAME_TYPE_BADGE_MAP = {
     "通常ペンデュラムモンスター": ":gray-badge[P通常]",
     "融合ペンデュラムモンスター": ":violet-badge[P融合]",
     "シンクロペンデュラムモンスター": ":orange-badge[Pシンクロ]",
-    "エクシーズペンデュラムモンスター": ":black-badge[Pエクシーズ]",
+    "エクシーズペンデュラムモンスター": ":gray-badge[Pエクシーズ]",
     "儀式ペンデュラムモンスター": ":green-badge[P儀式]",
 }
 
@@ -131,7 +135,8 @@ def __fts(tokens, limit):
         limit (int): 返却する最大件数。
 
     Returns:
-        pandas.DataFrame: DISPLAY_COLUMNS のカラム構成で検索スコア降順に並んだ結果。
+        pandas.DataFrame: name_ja, frame_type, race, attribute, atk, def,
+            level, scale, linkval, text_ja の順で BM25 スコア降順に並んだ結果。
     """
     fts_q = " ".join(
         [t.surface() for t in tokens if t.part_of_speech()[0] in FTS_ALLOW_TYPE]
@@ -150,7 +155,8 @@ def __vss(q, limit):
         limit (int): 返却する最大件数。
 
     Returns:
-        pandas.DataFrame: DISPLAY_COLUMNS のカラム構成でスコア降順に並んだ結果。
+        pandas.DataFrame: name_ja, frame_type, race, attribute, atk, def,
+            level, scale, linkval, text_ja の順でコサイン類似度スコア降順に並んだ結果。
     """
     vss_q = _encode(q)
 
@@ -164,15 +170,17 @@ def __vss(q, limit):
 def search(q, limit=10):
     """クエリを解析し、FTS または VSS を選択してカード検索を実行する。
 
-    クエリをトークナイズし、OOV (辞書未登録語) が1つでも含まれる場合は
-    FTS、すべて既知語の場合は VSS にルーティングする。
+    クエリをトークナイズし、OOV (辞書未登録語) が1つでも含まれる場合は FTS、
+    すべて既知語の場合は VSS にルーティングする。
+    返却カラムは DB カラム名のままで、表示用へのリネームは呼び出し元が行う。
 
     Args:
         q (str): 検索クエリ文字列。
         limit (int): 返却する最大件数。デフォルトは 10。
 
     Returns:
-        pandas.DataFrame: DISPLAY_COLUMNS のカラム構成で検索スコア降順に並んだ結果。
+        pandas.DataFrame: name_ja, frame_type, race, attribute, atk, def,
+            level, scale, linkval, text_ja の順で検索スコア降順に並んだ結果。
     """
     tokens = _tokenize(q)
 
@@ -193,6 +201,17 @@ ICON = "💳"
 
 
 def dim_bar(val):
+    """Pandas Styler 用セル単位スタイル関数。
+
+    欠損値プレースホルダ "ー" のセルをグレーアウトする。
+    df.style.map(dim_bar) で使用する。
+
+    Args:
+        val: セルの値。
+
+    Returns:
+        str: "ー" の場合は "color: #aaa;"、それ以外は ""。
+    """
     if val == "ー":
         return "color: #aaa;"
     return ""
@@ -215,6 +234,7 @@ with st.form("form"):
 table = st.table(pd.DataFrame(columns=DISPLAY_COLUMNS))
 if submitted and q:
     df = search(q, limit)
+
     df["frame_type"] = df["frame_type"].map(FRAME_TYPE_BADGE_MAP)
     df["attribute"] = df["attribute"].map(ATTRIBUTE_BADGE_MAP)
     df.columns = DISPLAY_COLUMNS
