@@ -9,6 +9,7 @@ DuckDB の FTS (全文検索) と VSS (ベクトル類似度検索) を組み合
 import duckdb
 import streamlit as st
 from functools import lru_cache
+from pathlib import Path
 from sudachipy import dictionary, tokenizer
 from sentence_transformers import SentenceTransformer
 
@@ -28,6 +29,10 @@ DISPLAY_COLUMNS = [
     "スケール",
     "リンク",
 ]
+
+SQL_DIR = Path(__file__).parent / "sql"
+FTS_SQL = (SQL_DIR / "fts.sql").read_text(encoding="utf-8")
+VSS_SQL = (SQL_DIR / "vss.sql").read_text(encoding="utf-8")
 
 
 # --- init ---
@@ -101,42 +106,7 @@ def __fts(tokens, limit):
         [t.surface() for t in tokens if t.part_of_speech()[0] in FTS_ALLOW_TYPE]
     )
 
-    df = con.sql(
-        """
-    WITH scored AS (
-    SELECT
-        *,
-        fts_main_cards.match_bm25(id, $q, conjunctive := 1) AS bm25_score
-    FROM cards
-    WHERE name_ja IS NOT NULL
-    AND text_ja IS NOT NULL
-    AND text_ja <> ''
-    ),
-    raw AS (
-    SELECT
-        name_ja,
-        text_ja,
-        frame_type,
-        COALESCE(race, '✕') AS race,
-        COALESCE(attribute, '✕') AS attribute,
-        COALESCE(CAST(CAST(ROUND(atk, 0) AS BIGINT) AS VARCHAR), '✕') AS atk,
-        COALESCE(CAST(CAST(ROUND(def, 0) AS BIGINT) AS VARCHAR), '✕') AS def,
-        COALESCE(CAST(CAST(ROUND(level, 0) AS BIGINT) AS VARCHAR), '✕') AS level,
-        COALESCE(CAST(CAST(ROUND(scale, 0) AS BIGINT) AS VARCHAR), '✕') AS scale,
-        COALESCE(CAST(CAST(ROUND(linkval, 0) AS BIGINT) AS VARCHAR), '✕') AS linkval
-    FROM scored
-    WHERE
-        name_ja LIKE '%' || $q || '%'
-    OR bm25_score IS NOT NULL
-    ORDER BY bm25_score DESC
-    LIMIT $limit
-    )
-    SELECT * REPLACE (score / NULLIF(MAX(score) OVER (), 0) AS score)
-    FROM raw
-    ORDER BY score DESC;
-    """,
-        params={"q": fts_q, "limit": limit},
-    ).to_df()
+    df = con.sql(FTS_SQL, params={"q": fts_q, "limit": limit}).to_df()
 
     df.columns = DISPLAY_COLUMNS
 
@@ -156,71 +126,7 @@ def __vss(q, limit):
     vss_q = _encode(q)
 
     df = con.sql(
-        """
-        WITH name_hits AS (
-        SELECT
-            *,
-            CASE
-                WHEN name_ja = $text_q THEN 1.0
-                WHEN name_ja LIKE '%' || $text_q || '%' THEN 0.95
-                ELSE 0
-            END AS score,
-            'name' AS search_type
-        FROM cards
-        WHERE name_ja IS NOT NULL
-        AND text_ja IS NOT NULL
-        AND text_ja <> ''
-        AND name_ja LIKE '%' || $text_q || '%'
-        LIMIT $limit
-        ),
-        vss_hits AS (
-        SELECT
-            *,
-            GREATEST(0, array_cosine_similarity(embeddings, CAST($embedding_q AS FLOAT[384]))) AS score,
-            'vss' AS search_type
-        FROM cards
-        WHERE name_ja IS NOT NULL
-        AND text_ja IS NOT NULL
-        AND text_ja <> ''
-        ORDER BY embeddings <-> CAST($embedding_q AS FLOAT[384])
-        LIMIT $limit
-        ),
-        merged AS (
-        SELECT * FROM name_hits
-        UNION ALL
-        SELECT * FROM vss_hits
-        ),
-        dedup AS (
-        SELECT
-            *,
-            ROW_NUMBER() OVER (
-                PARTITION BY name_ja
-                ORDER BY score DESC
-            ) AS rn
-        FROM merged
-        )
-        SELECT
-            name_ja,
-            text_ja,
-            frame_type,
-            COALESCE(race, '✕') AS race,
-            COALESCE(attribute, '✕') AS attribute,
-            COALESCE(CAST(CAST(ROUND(atk, 0) AS BIGINT) AS VARCHAR), '✕') AS atk,
-            COALESCE(CAST(CAST(ROUND(def, 0) AS BIGINT) AS VARCHAR), '✕') AS def,
-            COALESCE(CAST(CAST(ROUND(level, 0) AS BIGINT) AS VARCHAR), '✕') AS level,
-            COALESCE(CAST(CAST(ROUND(scale, 0) AS BIGINT) AS VARCHAR), '✕') AS scale,
-            COALESCE(CAST(CAST(ROUND(linkval, 0) AS BIGINT) AS VARCHAR), '✕') AS linkval
-        FROM dedup
-        WHERE rn = 1
-        AND  CASE
-            WHEN search_type = 'name' THEN score >= 0.85
-            WHEN search_type = 'vss' THEN score >= 0.65
-            ELSE FALSE
-        END
-        ORDER BY score DESC
-        LIMIT $limit;
-        """,
-        params={"text_q": q, "embedding_q": vss_q, "limit": limit},
+        VSS_SQL, params={"text_q": q, "embedding_q": vss_q, "limit": limit}
     ).to_df()
 
     df.columns = DISPLAY_COLUMNS
