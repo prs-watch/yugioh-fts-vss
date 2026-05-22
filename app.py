@@ -223,15 +223,14 @@ st.set_page_config(page_title=TITLE, page_icon="💳", layout="wide")
 st.header(TITLE)
 
 with st.form("form"):
-    qcol, limitcol, buttoncol = st.columns([3, 1, 1])
+    q_col, limit_col, button_col = st.columns([3, 1, 1])
 
-    q = qcol.text_input("キーワード")
-    limit = limitcol.slider("件数", 0, 20, 10)
-    with buttoncol:
+    q = q_col.text_input("キーワード")
+    limit = limit_col.slider("件数", 0, 20, 10)
+    with button_col:
         st.write("")  # adjust height
         submitted = st.form_submit_button("検索")
 
-table = st.table(pd.DataFrame(columns=DISPLAY_COLUMNS))
 if submitted and q:
     df = search(q, limit)
 
@@ -239,4 +238,4 @@ if submitted and q:
     df["attribute"] = df["attribute"].map(ATTRIBUTE_BADGE_MAP)
     df.columns = DISPLAY_COLUMNS
 
-    table.table(df.style.map(dim_bar))
+    st.table(df.style.map(dim_bar))
