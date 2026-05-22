@@ -115,6 +115,7 @@ def __init():
 con, dic, mode, model = __init()
 
 
+# --- search logics ---
 @lru_cache(maxsize=256)
 def _encode(q: str):
     return model.encode(q, normalize_embeddings=True)
@@ -125,7 +126,6 @@ def _tokenize(q: str):
     return dic.tokenize(q, mode)
 
 
-# --- search logics ---
 def __fts(tokens, limit):
     """BM25 を用いた全文検索を実行する。
 
