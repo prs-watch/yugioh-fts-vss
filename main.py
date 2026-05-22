@@ -255,10 +255,13 @@ def search(q, limit=10):
 
 
 # --- ui ---
-st.set_option("client.showErrorDetails", False)
-st.set_page_config(page_title="YUGIOH-FTS-VSS", page_icon="💳", layout="wide")
+TITLE = "💳YUGIOH-FTS-VSS"
+ICON = "💳"
 
-st.header("💳YUGIOH-FTS-VSS")
+st.set_option("client.showErrorDetails", False)
+st.set_page_config(page_title=TITLE, page_icon="💳", layout="wide")
+
+st.header(TITLE)
 
 with st.form("form"):
     qcol, limitcol, buttoncol = st.columns([3, 1, 1])
