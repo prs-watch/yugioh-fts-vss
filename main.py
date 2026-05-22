@@ -8,18 +8,24 @@ DuckDB の FTS (全文検索) と VSS (ベクトル類似度検索) を組み合
 
 import duckdb
 import streamlit as st
+import pandas as pd
 from functools import lru_cache
 from pathlib import Path
 from sudachipy import dictionary, tokenizer
 from sentence_transformers import SentenceTransformer
 
 # --- consts ---
+# --- for fts / vss ---
 DATASET_URL = "https://github.com/prs-watch/yugioh-ja-dataset/releases/download/latest/dataset.parquet"
 FTS_ALLOW_TYPE = ["名詞", "動詞", "形容詞"]
 MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+SQL_DIR = Path(__file__).parent / "sql"
+FTS_SQL = (SQL_DIR / "fts.sql").read_text(encoding="utf-8")
+VSS_SQL = (SQL_DIR / "vss.sql").read_text(encoding="utf-8")
+
+# --- for ui ---
 DISPLAY_COLUMNS = [
     "カード名",
-    "テキスト",
     "カード種",
     "種族 / 魔法罠種類",
     "属性",
@@ -28,11 +34,36 @@ DISPLAY_COLUMNS = [
     "レベル/ランク",
     "スケール",
     "リンク",
+    "テキスト",
 ]
-
-SQL_DIR = Path(__file__).parent / "sql"
-FTS_SQL = (SQL_DIR / "fts.sql").read_text(encoding="utf-8")
-VSS_SQL = (SQL_DIR / "vss.sql").read_text(encoding="utf-8")
+ATTRIBUTE_BADGE_MAP = {
+    "光": ":yellow-badge[光]",
+    "闇": ":violet-badge[闇]",
+    "炎": ":red-badge[炎]",
+    "水": ":blue-badge[水]",
+    "風": ":green-badge[風]",
+    "地": ":orange-badge[地]",
+    "神": ":gray-badge[神]",
+    "ー": ":gray-badge[ー]",
+}
+FRAME_TYPE_BADGE_MAP = {
+    "魔法": ":green-badge[魔法]",
+    "罠": ":red-badge[罠]",
+    "通常モンスター": ":gray-badge[通常]",
+    "効果モンスター": ":yellow-badge[効果]",
+    "融合モンスター": ":violet-badge[融合]",
+    "シンクロモンスター": ":orange-badge[シンクロ]",
+    "エクシーズモンスター": ":black-badge[エクシーズ]",
+    "リンクモンスター": ":blue-badge[リンク]",
+    "儀式モンスター": ":green-badge[儀式]",
+    "トークン": ":gray-badge[トークン]",
+    "ペンデュラム効果モンスター": ":yellow-badge[P効果]",
+    "通常ペンデュラムモンスター": ":gray-badge[P通常]",
+    "融合ペンデュラムモンスター": ":violet-badge[P融合]",
+    "シンクロペンデュラムモンスター": ":orange-badge[Pシンクロ]",
+    "エクシーズペンデュラムモンスター": ":black-badge[Pエクシーズ]",
+    "儀式ペンデュラムモンスター": ":green-badge[P儀式]",
+}
 
 
 # --- init ---
@@ -108,8 +139,6 @@ def __fts(tokens, limit):
 
     df = con.sql(FTS_SQL, params={"q": fts_q, "limit": limit}).to_df()
 
-    df.columns = DISPLAY_COLUMNS
-
     return df
 
 
@@ -128,8 +157,6 @@ def __vss(q, limit):
     df = con.sql(
         VSS_SQL, params={"text_q": q, "embedding_q": vss_q, "limit": limit}
     ).to_df()
-
-    df.columns = DISPLAY_COLUMNS
 
     return df
 
@@ -164,6 +191,13 @@ def search(q, limit=10):
 TITLE = "💳YUGIOH-FTS-VSS"
 ICON = "💳"
 
+
+def dim_bar(val):
+    if val == "ー":
+        return "color: #aaa;"
+    return ""
+
+
 st.set_option("client.showErrorDetails", False)
 st.set_page_config(page_title=TITLE, page_icon="💳", layout="wide")
 
@@ -178,6 +212,11 @@ with st.form("form"):
         st.write("")  # adjust height
         submitted = st.form_submit_button("検索")
 
+table = st.table(pd.DataFrame(columns=DISPLAY_COLUMNS))
 if submitted and q:
     df = search(q, limit)
-    st.table(df)
+    df["frame_type"] = df["frame_type"].map(FRAME_TYPE_BADGE_MAP)
+    df["attribute"] = df["attribute"].map(ATTRIBUTE_BADGE_MAP)
+    df.columns = DISPLAY_COLUMNS
+
+    table.table(df.style.map(dim_bar))

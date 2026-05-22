@@ -42,15 +42,15 @@ FROM merged
 )
 SELECT
     name_ja,
-    text_ja,
     frame_type,
-    COALESCE(race, '✕') AS race,
-    COALESCE(attribute, '✕') AS attribute,
-    COALESCE(CAST(CAST(ROUND(atk, 0) AS BIGINT) AS VARCHAR), '✕') AS atk,
-    COALESCE(CAST(CAST(ROUND(def, 0) AS BIGINT) AS VARCHAR), '✕') AS def,
-    COALESCE(CAST(CAST(ROUND(level, 0) AS BIGINT) AS VARCHAR), '✕') AS level,
-    COALESCE(CAST(CAST(ROUND(scale, 0) AS BIGINT) AS VARCHAR), '✕') AS scale,
-    COALESCE(CAST(CAST(ROUND(linkval, 0) AS BIGINT) AS VARCHAR), '✕') AS linkval
+    COALESCE(race, 'ー') AS race,
+    COALESCE(attribute, 'ー') AS attribute,
+    COALESCE(CAST(CAST(ROUND(atk, 0) AS BIGINT) AS VARCHAR), 'ー') AS atk,
+    COALESCE(CAST(CAST(ROUND(def, 0) AS BIGINT) AS VARCHAR), 'ー') AS def,
+    COALESCE(CAST(CAST(ROUND(level, 0) AS BIGINT) AS VARCHAR), 'ー') AS level,
+    COALESCE(CAST(CAST(ROUND(scale, 0) AS BIGINT) AS VARCHAR), 'ー') AS scale,
+    COALESCE(CAST(CAST(ROUND(linkval, 0) AS BIGINT) AS VARCHAR), 'ー') AS linkval,
+    text_ja
 FROM dedup
 WHERE rn = 1
 AND CASE
