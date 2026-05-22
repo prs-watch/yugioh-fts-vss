@@ -220,7 +220,7 @@ def dim_bar(val):
 st.set_option("client.showErrorDetails", False)
 st.set_page_config(page_title=TITLE, page_icon="💳", layout="wide")
 
-st.header(TITLE)
+st.title(TITLE)
 
 with st.form("form"):
     q_col, limit_col, button_col = st.columns([3, 1, 1])
