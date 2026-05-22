@@ -12,3 +12,6 @@ wheels/
 
 # VSCode
 .vscode
+
+# Claude Code
+.claude
