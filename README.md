@@ -34,7 +34,7 @@ chmod +x .githooks/pre-commit
 ### 起動
 
 ```bash
-uv run streamlit run main.py
+uv run streamlit run app.py
 ```
 
 ブラウザで `http://localhost:8501` を開く。
