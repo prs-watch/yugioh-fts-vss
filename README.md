@@ -11,14 +11,16 @@ DuckDB の FTS (全文検索) と VSS (ベクトル類似度検索) を組み合
 | クエリに辞書未登録語 (OOV) が含まれる | FTS (全文検索) | BM25 |
 | クエリがすべて既知語 | VSS (ベクトル類似度検索) | コサイン類似度 |
 
-## 使用技術
+## 開発者向け情報
+
+### 使用技術
 
 - **[DuckDB](https://duckdb.org/)** — インメモリ分析DB。`fts` / `vss` 拡張で全文検索・HNSW ベクトル検索を実現
 - **[Sudachi](https://github.com/WorksApplications/SudachiPy)** — 日本語形態素解析。OOV 判定とクエリトークナイズに使用
 - **[SentenceTransformers](https://www.sbert.net/)** — `paraphrase-multilingual-MiniLM-L12-v2` でクエリをベクトルに変換
 - **[Streamlit](https://streamlit.io/)** — Web UI
 
-## セットアップ
+### セットアップ
 
 ```bash
 # 依存パッケージのインストール
@@ -29,7 +31,7 @@ git config --local core.hooksPath .githooks
 chmod +x .githooks/pre-commit
 ```
 
-## 起動
+### 起動
 
 ```bash
 uv run streamlit run main.py
@@ -37,7 +39,7 @@ uv run streamlit run main.py
 
 ブラウザで `http://localhost:8501` を開く。
 
-## 検索項目
+### 検索項目
 
 | カラム | 説明 |
 |--------|------|
@@ -51,3 +53,17 @@ uv run streamlit run main.py
 | スケール | ペンデュラムスケール |
 | リンク | リンク数 |
 | テキスト | カードテキスト |
+
+### カードデータ更新
+
+カードデータ `cards.parquet` は GitHub Actions により毎週月曜 JST 9:00 に自動更新される。
+
+`update_cards.py` が以下を実行する。
+
+1. [yugioh-ja-dataset](https://github.com/prs-watch/yugioh-ja-dataset) から最新データセットを取得
+2. Sudachi で形態素解析し、FTS 用テキスト (`fts_text`) を生成
+3. SentenceTransformer でエンベディング (`embeddings`) を生成
+4. `tmp/cards.parquet` として保存
+5. ルートの `cards.parquet` と置き換えてコミット・プッシュ
+
+手動実行する場合は GitHub Actions の `workflow_dispatch` から実行できる。
