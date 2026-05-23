@@ -4,16 +4,16 @@ from pathlib import Path
 FTS_ALLOW_TYPE = ["名詞", "動詞", "形容詞"]
 MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
-# for pipeline script
+# pipeline
 DATASET_URL = "https://github.com/prs-watch/yugioh-ja-dataset/releases/download/latest/dataset.parquet"
 BATCH_SIZE = 32
 
-# for fts / vss
+# fts / vss
 SQL_DIR = Path(__file__).parent / "sql"
 FTS_SQL = (SQL_DIR / "fts.sql").read_text(encoding="utf-8")
 VSS_SQL = (SQL_DIR / "vss.sql").read_text(encoding="utf-8")
 
-# for ui
+# ui
 TITLE = "💳YUGIOH-FTS-VSS"
 ICON = "💳"
 DISPLAY_COLUMNS = [
