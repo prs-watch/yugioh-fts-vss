@@ -10,16 +10,19 @@ SQL クエリは sql/fts.sql・sql/vss.sql に外部化されており、
 モジュール起動時に一度だけ読み込まれる。
 """
 
+from typing import Any, Tuple
+
 import duckdb
+from pandas import DataFrame
 import streamlit as st
-import pandas as pd
 from functools import lru_cache
 from pathlib import Path
-from sudachipy import dictionary, tokenizer
+from sudachipy import MorphemeList, SplitMode, dictionary, tokenizer  # type: ignore
 from sentence_transformers import SentenceTransformer
+from torch import Tensor
 
 # --- consts ---
-# --- for fts / vss ---
+# for fts / vss
 DATASET_URL = "https://github.com/prs-watch/yugioh-ja-dataset/releases/download/latest/dataset.parquet"
 FTS_ALLOW_TYPE = ["名詞", "動詞", "形容詞"]
 MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
@@ -27,7 +30,7 @@ SQL_DIR = Path(__file__).parent / "sql"
 FTS_SQL = (SQL_DIR / "fts.sql").read_text(encoding="utf-8")
 VSS_SQL = (SQL_DIR / "vss.sql").read_text(encoding="utf-8")
 
-# --- for ui ---
+# for ui
 DISPLAY_COLUMNS = [
     "カード名",
     "カード種",
@@ -72,18 +75,23 @@ FRAME_TYPE_BADGE_MAP = {
 
 # --- init ---
 @st.cache_resource(show_spinner=False)
-def __init():
+def __init() -> Tuple[
+    duckdb.DuckDBPyConnection,
+    tokenizer.Tokenizer,
+    SplitMode,
+    SentenceTransformer,
+]:
     """アプリ起動時に一度だけ実行されるリソース初期化。
 
     DuckDB インメモリ接続を作成し、cards テーブルのロード・FTS/VSS インデックス構築、
     Sudachi トークナイザーおよび SentenceTransformer モデルの初期化を行う。
 
     Returns:
-        tuple: (con, dic, mode, model)
-            - con: duckdb.DuckDBPyConnection
-            - dic: sudachipy.MorphemeList を生成するトークナイザー辞書
-            - mode: Sudachi のトークナイズ分割モード (C)
-            - model: SentenceTransformer エンコードモデル
+        Tuple[DuckDBPyConnection, Tokenizer, SplitMode, SentenceTransformer]:
+            - con: DuckDB インメモリ接続。FTS/VSS インデックス構築済み。
+            - dic: Sudachi トークナイザーインスタンス。
+            - mode: Sudachi のトークナイズ分割モード (C モード)。
+            - model: SentenceTransformer エンコードモデル。
     """
     # init data
     con = duckdb.connect()
@@ -112,31 +120,48 @@ def __init():
     return con, dic, mode, model
 
 
+# execute init
 con, dic, mode, model = __init()
 
 
 # --- search logics ---
 @lru_cache(maxsize=256)
-def _encode(q: str):
-    return model.encode(q, normalize_embeddings=True)
+def _encode(q: str) -> Tensor:
+    """クエリ文字列を正規化済みエンベディングに変換する (LRUキャッシュ付き)。
+
+    Args:
+        q: エンコード対象のクエリ文字列。
+
+    Returns:
+        正規化済みエンベディングテンソル (shape: [384])。
+    """
+    return model.encode(q, normalize_embeddings=True)  # type: ignore
 
 
 @lru_cache(maxsize=256)
-def _tokenize(q: str):
+def _tokenize(q: str) -> MorphemeList:
+    """クエリ文字列を Sudachi C モードでトークナイズする (LRUキャッシュ付き)。
+
+    Args:
+        q: トークナイズ対象のクエリ文字列。
+
+    Returns:
+        Sudachi が解析した形態素リスト。
+    """
     return dic.tokenize(q, mode)
 
 
-def __fts(tokens, limit):
+def __fts(tokens: MorphemeList, limit: int) -> DataFrame:
     """BM25 を用いた全文検索を実行する。
 
     Args:
         tokens: Sudachi によってトークナイズされた形態素リスト。
-            名詞・動詞・形容詞のみ検索クエリに使用する。
-        limit (int): 返却する最大件数。
+            名詞・動詞・形容詞 (FTS_ALLOW_TYPE) のみ検索クエリに使用する。
+        limit: 返却する最大件数。
 
     Returns:
-        pandas.DataFrame: name_ja, frame_type, race, attribute, atk, def,
-            level, scale, linkval, text_ja の順で BM25 スコア降順に並んだ結果。
+        name_ja, frame_type, race, attribute, atk, def,
+        level, scale, linkval, text_ja の順で BM25 スコア降順に並んだ DataFrame。
     """
     fts_q = " ".join(
         [t.surface() for t in tokens if t.part_of_speech()[0] in FTS_ALLOW_TYPE]
@@ -147,16 +172,16 @@ def __fts(tokens, limit):
     return df
 
 
-def __vss(q, limit):
+def __vss(q: str, limit: int) -> DataFrame:
     """コサイン類似度を用いたベクトル類似度検索を実行する。
 
     Args:
-        q (str): 検索クエリ文字列。SentenceTransformer でエンベディングに変換される。
-        limit (int): 返却する最大件数。
+        q: 検索クエリ文字列。SentenceTransformer でエンベディングに変換される。
+        limit: 返却する最大件数。
 
     Returns:
-        pandas.DataFrame: name_ja, frame_type, race, attribute, atk, def,
-            level, scale, linkval, text_ja の順でコサイン類似度スコア降順に並んだ結果。
+        name_ja, frame_type, race, attribute, atk, def,
+        level, scale, linkval, text_ja の順でコサイン類似度スコア降順に並んだ DataFrame。
     """
     vss_q = _encode(q)
 
@@ -167,7 +192,7 @@ def __vss(q, limit):
     return df
 
 
-def search(q, limit=10):
+def search(q: str, limit: int = 10) -> DataFrame:
     """クエリを解析し、FTS または VSS を選択してカード検索を実行する。
 
     クエリをトークナイズし、OOV (辞書未登録語) が1つでも含まれる場合は FTS、
@@ -175,12 +200,12 @@ def search(q, limit=10):
     返却カラムは DB カラム名のままで、表示用へのリネームは呼び出し元が行う。
 
     Args:
-        q (str): 検索クエリ文字列。
-        limit (int): 返却する最大件数。デフォルトは 10。
+        q: 検索クエリ文字列。
+        limit: 返却する最大件数。デフォルトは 10。
 
     Returns:
-        pandas.DataFrame: name_ja, frame_type, race, attribute, atk, def,
-            level, scale, linkval, text_ja の順で検索スコア降順に並んだ結果。
+        name_ja, frame_type, race, attribute, atk, def,
+        level, scale, linkval, text_ja の順で検索スコア降順に並んだ DataFrame。
     """
     tokens = _tokenize(q)
 
@@ -200,42 +225,49 @@ TITLE = "💳YUGIOH-FTS-VSS"
 ICON = "💳"
 
 
-def dim_bar(val):
+def dim_bar(val: Any) -> str:
     """Pandas Styler 用セル単位スタイル関数。
 
     欠損値プレースホルダ "ー" のセルをグレーアウトする。
-    df.style.map(dim_bar) で使用する。
+    `df.style.map(dim_bar)` で使用する。
 
     Args:
         val: セルの値。
 
     Returns:
-        str: "ー" の場合は "color: #aaa;"、それ以外は ""。
+        "ー" の場合は `"color: #aaa;"`、それ以外は `""`。
     """
     if val == "ー":
         return "color: #aaa;"
     return ""
 
 
+# page config
 st.set_option("client.showErrorDetails", False)
-st.set_page_config(page_title=TITLE, page_icon="💳", layout="wide")
+st.set_page_config(page_title=TITLE, page_icon=ICON, layout="wide")
 
+# header
 st.title(TITLE)
 
+# form
 with st.form("form"):
     q_col, limit_col, button_col = st.columns([3, 1, 1])
 
-    q = q_col.text_input("キーワード")
+    q = q_col.text_input("FTS / VSS検索")
     limit = limit_col.slider("件数", 0, 20, 10)
     with button_col:
         st.write("")  # adjust height
-        submitted = st.form_submit_button("検索")
+        submitted = st.form_submit_button("実行")
 
+# result
 if submitted and q:
     df = search(q, limit)
 
+    # add badge
     df["frame_type"] = df["frame_type"].map(FRAME_TYPE_BADGE_MAP)
     df["attribute"] = df["attribute"].map(ATTRIBUTE_BADGE_MAP)
+
+    # set display label
     df.columns = DISPLAY_COLUMNS
 
     st.table(df.style.map(dim_bar))
