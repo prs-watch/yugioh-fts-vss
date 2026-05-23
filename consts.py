@@ -14,6 +14,8 @@ FTS_SQL = (SQL_DIR / "fts.sql").read_text(encoding="utf-8")
 VSS_SQL = (SQL_DIR / "vss.sql").read_text(encoding="utf-8")
 
 # for ui
+TITLE = "💳YUGIOH-FTS-VSS"
+ICON = "💳"
 DISPLAY_COLUMNS = [
     "カード名",
     "カード種",

@@ -26,6 +26,8 @@ from consts import (
     MODEL_NAME,
     FTS_SQL,
     VSS_SQL,
+    TITLE,
+    ICON,
     DISPLAY_COLUMNS,
     ATTRIBUTE_BADGE_MAP,
     FRAME_TYPE_BADGE_MAP,
@@ -180,10 +182,6 @@ def search(q: str, limit: int = 10) -> DataFrame:
 
 
 # --- ui ---
-TITLE = "💳YUGIOH-FTS-VSS"
-ICON = "💳"
-
-
 def dim_bar(val: Any) -> str:
     """Pandas Styler 用セル単位スタイル関数。
 
