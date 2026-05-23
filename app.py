@@ -16,66 +16,25 @@ import duckdb
 from pandas import DataFrame
 import streamlit as st
 from functools import lru_cache
-from pathlib import Path
 from sudachipy import MorphemeList, SplitMode, dictionary, tokenizer  # type: ignore
 from sentence_transformers import SentenceTransformer
 from torch import Tensor
 
 # --- consts ---
-# for fts / vss
-DATASET_URL = "https://github.com/prs-watch/yugioh-ja-dataset/releases/download/latest/dataset.parquet"
-FTS_ALLOW_TYPE = ["名詞", "動詞", "形容詞"]
-MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-SQL_DIR = Path(__file__).parent / "sql"
-FTS_SQL = (SQL_DIR / "fts.sql").read_text(encoding="utf-8")
-VSS_SQL = (SQL_DIR / "vss.sql").read_text(encoding="utf-8")
-
-# for ui
-DISPLAY_COLUMNS = [
-    "カード名",
-    "カード種",
-    "種族 / 魔法罠種類",
-    "属性",
-    "攻",
-    "守",
-    "レベル/ランク",
-    "スケール",
-    "リンク",
-    "テキスト",
-]
-ATTRIBUTE_BADGE_MAP = {
-    "光": ":yellow-badge[光]",
-    "闇": ":violet-badge[闇]",
-    "炎": ":red-badge[炎]",
-    "水": ":blue-badge[水]",
-    "風": ":green-badge[風]",
-    "地": ":orange-badge[地]",
-    "神": ":gray-badge[神]",
-    "ー": ":gray-badge[ー]",
-}
-FRAME_TYPE_BADGE_MAP = {
-    "魔法": ":green-badge[魔法]",
-    "罠": ":red-badge[罠]",
-    "通常モンスター": ":primary-badge[通常]",
-    "効果モンスター": ":yellow-badge[効果]",
-    "融合モンスター": ":violet-badge[融合]",
-    "シンクロモンスター": ":orange-badge[シンクロ]",
-    "エクシーズモンスター": ":gray-badge[エクシーズ]",
-    "リンクモンスター": ":blue-badge[リンク]",
-    "儀式モンスター": ":green-badge[儀式]",
-    "トークン": ":gray-badge[トークン]",
-    "ペンデュラム効果モンスター": ":yellow-badge[P効果]",
-    "通常ペンデュラムモンスター": ":gray-badge[P通常]",
-    "融合ペンデュラムモンスター": ":violet-badge[P融合]",
-    "シンクロペンデュラムモンスター": ":orange-badge[Pシンクロ]",
-    "エクシーズペンデュラムモンスター": ":gray-badge[Pエクシーズ]",
-    "儀式ペンデュラムモンスター": ":green-badge[P儀式]",
-}
+from consts import (
+    FTS_ALLOW_TYPE,
+    MODEL_NAME,
+    FTS_SQL,
+    VSS_SQL,
+    DISPLAY_COLUMNS,
+    ATTRIBUTE_BADGE_MAP,
+    FRAME_TYPE_BADGE_MAP,
+)
 
 
 # --- init ---
 @st.cache_resource(show_spinner=False)
-def __init() -> Tuple[
+def init() -> Tuple[
     duckdb.DuckDBPyConnection,
     tokenizer.Tokenizer,
     SplitMode,
@@ -121,12 +80,12 @@ def __init() -> Tuple[
 
 
 # execute init
-con, dic, mode, model = __init()
+con, dic, mode, model = init()
 
 
 # --- search logics ---
 @lru_cache(maxsize=256)
-def _encode(q: str) -> Tensor:
+def encode(q: str) -> Tensor:
     """クエリ文字列を正規化済みエンベディングに変換する (LRUキャッシュ付き)。
 
     Args:
@@ -139,7 +98,7 @@ def _encode(q: str) -> Tensor:
 
 
 @lru_cache(maxsize=256)
-def _tokenize(q: str) -> MorphemeList:
+def tokenize(q: str) -> MorphemeList:
     """クエリ文字列を Sudachi C モードでトークナイズする (LRUキャッシュ付き)。
 
     Args:
@@ -151,7 +110,7 @@ def _tokenize(q: str) -> MorphemeList:
     return dic.tokenize(q, mode)
 
 
-def __fts(tokens: MorphemeList, limit: int) -> DataFrame:
+def fts(tokens: MorphemeList, limit: int) -> DataFrame:
     """BM25 を用いた全文検索を実行する。
 
     Args:
@@ -163,16 +122,16 @@ def __fts(tokens: MorphemeList, limit: int) -> DataFrame:
         name_ja, frame_type, race, attribute, atk, def,
         level, scale, linkval, text_ja の順で BM25 スコア降順に並んだ DataFrame。
     """
-    fts_q = " ".join(
-        [t.surface() for t in tokens if t.part_of_speech()[0] in FTS_ALLOW_TYPE]
-    )
+    fts_q = " ".join([
+        t.surface() for t in tokens if t.part_of_speech()[0] in FTS_ALLOW_TYPE
+    ])
 
     df = con.sql(FTS_SQL, params={"q": fts_q, "limit": limit}).to_df()
 
     return df
 
 
-def __vss(q: str, limit: int) -> DataFrame:
+def vss(q: str, limit: int) -> DataFrame:
     """コサイン類似度を用いたベクトル類似度検索を実行する。
 
     Args:
@@ -183,7 +142,7 @@ def __vss(q: str, limit: int) -> DataFrame:
         name_ja, frame_type, race, attribute, atk, def,
         level, scale, linkval, text_ja の順でコサイン類似度スコア降順に並んだ DataFrame。
     """
-    vss_q = _encode(q)
+    vss_q = encode(q)
 
     df = con.sql(
         VSS_SQL, params={"text_q": q, "embedding_q": vss_q, "limit": limit}
@@ -207,7 +166,7 @@ def search(q: str, limit: int = 10) -> DataFrame:
         name_ja, frame_type, race, attribute, atk, def,
         level, scale, linkval, text_ja の順で検索スコア降順に並んだ DataFrame。
     """
-    tokens = _tokenize(q)
+    tokens = tokenize(q)
 
     is_fts = False
     for t in tokens:
@@ -216,8 +175,8 @@ def search(q: str, limit: int = 10) -> DataFrame:
             break
 
     if is_fts:
-        return __fts(tokens, limit)
-    return __vss(q, limit)
+        return fts(tokens, limit)
+    return vss(q, limit)
 
 
 # --- ui ---
