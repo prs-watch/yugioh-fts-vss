@@ -10,8 +10,11 @@ wheels/
 .venv
 .devcontainer
 
-# VSCode
+# vscode
 .vscode
 
-# Claude Code
+# claude code
 .claude
+
+# personal memo
+TODO.md
