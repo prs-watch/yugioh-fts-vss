@@ -23,6 +23,10 @@ DuckDB の FTS (全文検索) と VSS (ベクトル類似度検索) を組み合
 ```bash
 # 依存パッケージのインストール
 uv sync
+
+# Pyrightチェックを実行する.githooks/pre-commitを有効化
+git config --local core.hooksPath .githooks
+chmod +x .githooks/pre-commit
 ```
 
 ## 起動
