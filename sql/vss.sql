@@ -4,6 +4,7 @@ SELECT
     CASE
         WHEN name_ja = $text_q THEN 1.0
         WHEN name_ja LIKE '%' || $text_q || '%' THEN 0.95
+        WHEN ruby LIKE '%' || $text_q || '%' THEN 0.95
         ELSE 0
     END AS score,
     'name' AS search_type
@@ -11,7 +12,9 @@ FROM cards
 WHERE name_ja IS NOT NULL
 AND text_ja IS NOT NULL
 AND text_ja <> ''
+AND ruby <> ''
 AND name_ja LIKE '%' || $text_q || '%'
+OR ruby LIKE '%' || $text_q || '%'
 LIMIT $limit
 ),
 vss_hits AS (
@@ -21,6 +24,7 @@ SELECT
     'vss' AS search_type
 FROM cards
 WHERE name_ja IS NOT NULL
+AND ruby IS NOT NULL
 AND text_ja IS NOT NULL
 AND text_ja <> ''
 ORDER BY embeddings <-> CAST($embedding_q AS FLOAT[384])

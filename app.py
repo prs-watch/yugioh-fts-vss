@@ -66,7 +66,7 @@ def init() -> Tuple[
 
     con.execute("""
     INSTALL fts; LOAD fts;
-    PRAGMA create_fts_index('cards', 'id', 'name_ja', 'fts_text');
+    PRAGMA create_fts_index('cards', 'id', 'name_ja', 'ruby', 'fts_text');
     
     INSTALL vss; LOAD vss;
     CREATE INDEX IF NOT EXISTS cards_embeddings_idx ON cards USING HNSW (embeddings) WITH (metric = 'cosine', ef_search = 200);

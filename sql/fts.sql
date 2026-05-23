@@ -22,6 +22,7 @@ SELECT
 FROM scored
 WHERE
     name_ja LIKE '%' || $q || '%'
+OR ruby LIKE '%' || $q || '%'
 OR bm25_score IS NOT NULL
 ORDER BY bm25_score DESC
 LIMIT $limit
