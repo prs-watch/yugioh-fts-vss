@@ -10,15 +10,14 @@ SQL クエリは sql/fts.sql・sql/vss.sql に外部化されており、
 モジュール起動時に一度だけ読み込まれる。
 """
 
-from typing import Any, Tuple
+from functools import lru_cache
 
 import duckdb
 from pandas import DataFrame, Series
-import streamlit as st
-from functools import lru_cache
-from sudachipy import MorphemeList, SplitMode, dictionary, tokenizer  # type: ignore
 from sentence_transformers import SentenceTransformer
+from sudachipy import MorphemeList, SplitMode, dictionary, tokenizer  # type: ignore
 from torch import Tensor
+import streamlit as st
 
 # --- consts ---
 from consts import (
@@ -36,7 +35,7 @@ from consts import (
 
 # --- init ---
 @st.cache_resource(show_spinner=False)
-def init() -> Tuple[
+def init() -> tuple[
     duckdb.DuckDBPyConnection,
     tokenizer.Tokenizer,
     SplitMode,
@@ -124,9 +123,9 @@ def fts(tokens: MorphemeList, limit: int) -> DataFrame:
         name_ja, frame_type, race, attribute, atk, def,
         level, scale, linkval, text_ja の順で BM25 スコア降順に並んだ DataFrame。
     """
-    fts_q = " ".join([
-        t.surface() for t in tokens if t.part_of_speech()[0] in FTS_ALLOW_TYPE
-    ])
+    fts_q = " ".join(
+        [t.surface() for t in tokens if t.part_of_speech()[0] in FTS_ALLOW_TYPE]
+    )
 
     df = con.sql(FTS_SQL, params={"q": fts_q, "limit": limit}).to_df()
 
@@ -169,14 +168,9 @@ def search(q: str, limit: int = 10) -> DataFrame:
         level, scale, linkval, text_ja の順で検索スコア降順に並んだ DataFrame。
     """
     tokens = tokenize(q)
+    has_oov = any(t.is_oov() for t in tokens)
 
-    is_fts = False
-    for t in tokens:
-        if t.is_oov():
-            is_fts = True
-            break
-
-    if is_fts:
+    if has_oov:
         return fts(tokens, limit)
     return vss(q, limit)
 
@@ -194,7 +188,7 @@ def render_card(card: Series) -> None:
         if "ー" not in card["属性"]:
             col_attr.markdown(card["属性"])
 
-        stats: list[Any] = []
+        stats: list[str] = []
         race = card["種族 / 魔法罠種類"]
         if race != "ー":
             stats.append(race)
@@ -251,7 +245,7 @@ if submitted and q:
 # filter + result
 if st.session_state.raw_results is None:
     st.info("キーワードを入力して検索してください")
-elif st.session_state.raw_results is not None:
+else:
     df = st.session_state.raw_results.copy()
 
     # 検索結果に存在する値だけを選択肢として動的生成
