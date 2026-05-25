@@ -13,7 +13,7 @@ SQL クエリは sql/fts.sql・sql/vss.sql に外部化されており、
 from typing import Any, Tuple
 
 import duckdb
-from pandas import DataFrame
+from pandas import DataFrame, Series
 import streamlit as st
 from functools import lru_cache
 from sudachipy import MorphemeList, SplitMode, dictionary, tokenizer  # type: ignore
@@ -69,7 +69,7 @@ def init() -> Tuple[
     con.execute("""
     INSTALL fts; LOAD fts;
     PRAGMA create_fts_index('cards', 'id', 'name_ja', 'ruby', 'fts_text');
-    
+
     INSTALL vss; LOAD vss;
     CREATE INDEX IF NOT EXISTS cards_embeddings_idx ON cards USING HNSW (embeddings) WITH (metric = 'cosine', ef_search = 200);
     """)
@@ -182,21 +182,45 @@ def search(q: str, limit: int = 10) -> DataFrame:
 
 
 # --- ui ---
-def dim_bar(val: Any) -> str:
-    """Pandas Styler 用セル単位スタイル関数。
+COLS_PER_ROW = 3
 
-    欠損値プレースホルダ "ー" のセルをグレーアウトする。
-    `df.style.map(dim_bar)` で使用する。
 
-    Args:
-        val: セルの値。
+def render_card(card: Series) -> None:
+    with st.container(border=True):
+        st.markdown(f"**{card['カード名']}**")
 
-    Returns:
-        "ー" の場合は `"color: #aaa;"`、それ以外は `""`。
-    """
-    if val == "ー":
-        return "color: #aaa;"
-    return ""
+        col_type, col_attr = st.columns(2)
+        col_type.markdown(card["カード種"])
+        if "ー" not in card["属性"]:
+            col_attr.markdown(card["属性"])
+
+        stats: list[Any] = []
+        race = card["種族 / 魔法罠種類"]
+        if race != "ー":
+            stats.append(race)
+        if card["レベル/ランク"] != "ー":
+            stats.append(f"Lv {card['レベル/ランク']}")
+        if card["攻"] != "ー":
+            stats.append(f"ATK {card['攻']}")
+        if card["守"] != "ー":
+            stats.append(f"DEF {card['守']}")
+        if card["スケール"] != "ー":
+            stats.append(f"⚖{card['スケール']}")
+        if card["リンク"] != "ー":
+            stats.append(f"LINK {card['リンク']}")
+        if stats:
+            st.caption("  ·  ".join(str(s) for s in stats))
+
+        with st.expander("テキスト"):
+            st.write(card["テキスト"])
+
+
+def render_card_grid(df: DataFrame) -> None:
+    for i in range(0, len(df), COLS_PER_ROW):
+        cols = st.columns(COLS_PER_ROW)
+        for col, (_, card) in zip(cols, df.iloc[i : i + COLS_PER_ROW].iterrows()):
+            with col:
+                render_card(card)
 
 
 # page config
@@ -205,6 +229,10 @@ st.set_page_config(page_title=TITLE, page_icon=ICON, layout="wide")
 
 # header
 st.title(TITLE)
+
+# session state
+if "raw_results" not in st.session_state:
+    st.session_state.raw_results = None
 
 # form
 with st.form("form"):
@@ -216,15 +244,35 @@ with st.form("form"):
         st.write("")  # adjust height
         submitted = st.form_submit_button("実行")
 
-# result
 if submitted and q:
-    df = search(q, limit)
+    with st.spinner("検索中..."):
+        st.session_state.raw_results = search(q, limit)
 
-    # add badge
+# filter + result
+if st.session_state.raw_results is None:
+    st.info("キーワードを入力して検索してください")
+elif st.session_state.raw_results is not None:
+    df = st.session_state.raw_results.copy()
+
+    # 検索結果に存在する値だけを選択肢として動的生成
+    available_types = sorted(df["frame_type"].dropna().unique().tolist())
+    available_attrs = sorted(df["attribute"].dropna().unique().tolist())
+
+    filter_col1, filter_col2 = st.columns(2)
+    selected_types = filter_col1.multiselect("カード種で絞り込み", available_types)
+    selected_attrs = filter_col2.multiselect("属性で絞り込み", available_attrs)
+
+    if selected_types:
+        df = df[df["frame_type"].isin(selected_types)]
+    if selected_attrs:
+        df = df[df["attribute"].isin(selected_attrs)]
+
     df["frame_type"] = df["frame_type"].map(FRAME_TYPE_BADGE_MAP)
     df["attribute"] = df["attribute"].map(ATTRIBUTE_BADGE_MAP)
-
-    # set display label
     df.columns = DISPLAY_COLUMNS
 
-    st.table(df.style.map(dim_bar))
+    if df.empty:
+        st.info("絞り込み条件に一致するカードがありません。")
+    else:
+        st.caption(f"{len(df)} 件")
+        render_card_grid(df)
