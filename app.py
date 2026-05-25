@@ -30,7 +30,26 @@ from consts import (
     VSS_SQL,
     TITLE,
     ICON,
+    COL_NAME,
+    COL_FRAME_TYPE,
+    COL_RACE,
+    COL_ATTRIBUTE,
+    COL_ATK,
+    COL_DEF,
+    COL_LEVEL,
+    COL_SCALE,
+    COL_LINK,
+    COL_TEXT,
     DISPLAY_COLUMNS,
+    LABEL_SEARCH_INPUT,
+    LABEL_LIMIT,
+    LABEL_SUBMIT,
+    LABEL_SEARCHING,
+    LABEL_SEARCH_PLACEHOLDER,
+    LABEL_FILTER_FRAME_TYPE,
+    LABEL_FILTER_ATTRIBUTE,
+    LABEL_RESULT_COUNT,
+    LABEL_NO_RESULTS,
     ATTRIBUTE_BADGE_MAP,
     FRAME_TYPE_BADGE_MAP,
 )
@@ -169,32 +188,32 @@ COLS_PER_ROW = 3
 
 def render_card(card: Series) -> None:
     with st.container(border=True):
-        st.markdown(f"**{card['カード名']}**")
+        st.markdown(f"**{card[COL_NAME]}**")
 
         col_type, col_attr = st.columns(2)
-        col_type.markdown(card["カード種"])
-        if "ー" not in card["属性"]:
-            col_attr.markdown(card["属性"])
+        col_type.markdown(card[COL_FRAME_TYPE])
+        if "ー" not in card[COL_ATTRIBUTE]:
+            col_attr.markdown(card[COL_ATTRIBUTE])
 
         stats: list[str] = []
-        race = card["種族 / 魔法罠種類"]
+        race = card[COL_RACE]
         if race != "ー":
             stats.append(race)
-        if card["レベル/ランク"] != "ー":
-            stats.append(f"Lv {card['レベル/ランク']}")
-        if card["攻"] != "ー":
-            stats.append(f"ATK {card['攻']}")
-        if card["守"] != "ー":
-            stats.append(f"DEF {card['守']}")
-        if card["スケール"] != "ー":
-            stats.append(f"⚖{card['スケール']}")
-        if card["リンク"] != "ー":
-            stats.append(f"LINK {card['リンク']}")
+        if card[COL_LEVEL] != "ー":
+            stats.append(f"Lv {card[COL_LEVEL]}")
+        if card[COL_ATK] != "ー":
+            stats.append(f"ATK {card[COL_ATK]}")
+        if card[COL_DEF] != "ー":
+            stats.append(f"DEF {card[COL_DEF]}")
+        if card[COL_SCALE] != "ー":
+            stats.append(f"⚖{card[COL_SCALE]}")
+        if card[COL_LINK] != "ー":
+            stats.append(f"LINK {card[COL_LINK]}")
         if stats:
             st.caption("  ·  ".join(str(s) for s in stats))
 
-        with st.expander("テキスト"):
-            st.write(card["テキスト"])
+        with st.expander(COL_TEXT):
+            st.write(card[COL_TEXT])
 
 
 def render_card_grid(df: DataFrame) -> None:
@@ -220,19 +239,19 @@ if "raw_results" not in st.session_state:
 with st.form("form"):
     q_col, limit_col, button_col = st.columns([3, 1, 1])
 
-    q = q_col.text_input("FTS / VSS検索")
-    limit = limit_col.slider("件数", 0, 20, 10)
+    q = q_col.text_input(LABEL_SEARCH_INPUT)
+    limit = limit_col.slider(LABEL_LIMIT, 0, 20, 10)
     with button_col:
         st.write("")  # adjust height
-        submitted = st.form_submit_button("実行")
+        submitted = st.form_submit_button(LABEL_SUBMIT)
 
 if submitted and q:
-    with st.spinner("検索中..."):
+    with st.spinner(LABEL_SEARCHING):
         st.session_state.raw_results = search(q, limit)
 
 # filter + result
 if st.session_state.raw_results is None:
-    st.info("キーワードを入力して検索してください")
+    st.info(LABEL_SEARCH_PLACEHOLDER)
 else:
     df = st.session_state.raw_results.copy()
 
@@ -241,8 +260,8 @@ else:
     available_attrs = sorted(df["attribute"].dropna().unique().tolist())
 
     filter_col1, filter_col2 = st.columns(2)
-    selected_types = filter_col1.multiselect("カード種で絞り込み", available_types)
-    selected_attrs = filter_col2.multiselect("属性で絞り込み", available_attrs)
+    selected_types = filter_col1.multiselect(LABEL_FILTER_FRAME_TYPE, available_types)
+    selected_attrs = filter_col2.multiselect(LABEL_FILTER_ATTRIBUTE, available_attrs)
 
     if selected_types:
         df = df[df["frame_type"].isin(selected_types)]
@@ -254,7 +273,7 @@ else:
     df.columns = DISPLAY_COLUMNS
 
     if df.empty:
-        st.info("絞り込み条件に一致するカードがありません。")
+        st.info(LABEL_NO_RESULTS)
     else:
-        st.caption(f"{len(df)} 件")
+        st.caption(LABEL_RESULT_COUNT.format(len(df)))
         render_card_grid(df)

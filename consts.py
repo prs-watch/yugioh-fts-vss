@@ -19,17 +19,39 @@ VSS_SQL = (SQL_DIR / "vss.sql").read_text(encoding="utf-8")
 # ui
 TITLE = "💳YUGIOH-FTS-VSS"
 ICON = "💳"
+
+COL_NAME = "カード名"
+COL_FRAME_TYPE = "カード種"
+COL_RACE = "種族 / 魔法罠種類"
+COL_ATTRIBUTE = "属性"
+COL_ATK = "攻"
+COL_DEF = "守"
+COL_LEVEL = "レベル/ランク"
+COL_SCALE = "スケール"
+COL_LINK = "リンク"
+COL_TEXT = "テキスト"
+
+LABEL_SEARCH_INPUT = "FTS / VSS検索"
+LABEL_LIMIT = "件数"
+LABEL_SUBMIT = "実行"
+LABEL_SEARCHING = "検索中..."
+LABEL_SEARCH_PLACEHOLDER = "キーワードを入力して検索してください"
+LABEL_FILTER_FRAME_TYPE = "カード種で絞り込み"
+LABEL_FILTER_ATTRIBUTE = "属性で絞り込み"
+LABEL_RESULT_COUNT = "{} 件"
+LABEL_NO_RESULTS = "絞り込み条件に一致するカードがありません。"
+
 DISPLAY_COLUMNS = [
-    "カード名",
-    "カード種",
-    "種族 / 魔法罠種類",
-    "属性",
-    "攻",
-    "守",
-    "レベル/ランク",
-    "スケール",
-    "リンク",
-    "テキスト",
+    COL_NAME,
+    COL_FRAME_TYPE,
+    COL_RACE,
+    COL_ATTRIBUTE,
+    COL_ATK,
+    COL_DEF,
+    COL_LEVEL,
+    COL_SCALE,
+    COL_LINK,
+    COL_TEXT,
 ]
 ATTRIBUTE_BADGE_MAP = {
     "光": ":yellow-badge[光]",
