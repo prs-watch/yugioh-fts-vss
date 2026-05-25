@@ -23,6 +23,9 @@ import streamlit as st
 from consts import (
     FTS_ALLOW_TYPE,
     MODEL_NAME,
+    INIT_TABLE_SQL,
+    INIT_FTS_SQL,
+    INIT_VSS_SQL,
     FTS_SQL,
     VSS_SQL,
     TITLE,
@@ -53,25 +56,10 @@ def init() -> tuple[
             - mode: Sudachi のトークナイズ分割モード (C モード)。
             - model: SentenceTransformer エンコードモデル。
     """
-    # init data
     con = duckdb.connect()
-    con.execute("CREATE TABLE cards AS SELECT * FROM read_parquet('cards.parquet');")
-
-    # fts / vss prepare
-    con.execute("""
-    ALTER TABLE cards ADD COLUMN embeddings_tmp FLOAT[384];
-    UPDATE cards SET embeddings_tmp = CAST(embeddings AS FLOAT[384]);
-    ALTER TABLE cards DROP COLUMN embeddings;
-    ALTER TABLE cards RENAME COLUMN embeddings_tmp TO embeddings;
-    """)
-
-    con.execute("""
-    INSTALL fts; LOAD fts;
-    PRAGMA create_fts_index('cards', 'id', 'name_ja', 'ruby', 'fts_text');
-
-    INSTALL vss; LOAD vss;
-    CREATE INDEX IF NOT EXISTS cards_embeddings_idx ON cards USING HNSW (embeddings) WITH (metric = 'cosine', ef_search = 200);
-    """)
+    con.execute(INIT_TABLE_SQL)
+    con.execute(INIT_FTS_SQL)
+    con.execute(INIT_VSS_SQL)
 
     dic = dictionary.Dictionary().create()
     mode = tokenizer.Tokenizer.SplitMode.C

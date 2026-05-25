@@ -10,6 +10,9 @@ BATCH_SIZE = 32
 
 # fts / vss
 SQL_DIR = Path(__file__).parent / "sql"
+INIT_TABLE_SQL = (SQL_DIR / "init_table.sql").read_text(encoding="utf-8")
+INIT_FTS_SQL = (SQL_DIR / "init_fts.sql").read_text(encoding="utf-8")
+INIT_VSS_SQL = (SQL_DIR / "init_vss.sql").read_text(encoding="utf-8")
 FTS_SQL = (SQL_DIR / "fts.sql").read_text(encoding="utf-8")
 VSS_SQL = (SQL_DIR / "vss.sql").read_text(encoding="utf-8")
 
