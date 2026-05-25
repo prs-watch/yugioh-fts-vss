@@ -16,6 +16,10 @@ INIT_VSS_SQL = (SQL_DIR / "init_vss.sql").read_text(encoding="utf-8")
 FTS_SQL = (SQL_DIR / "fts.sql").read_text(encoding="utf-8")
 VSS_SQL = (SQL_DIR / "vss.sql").read_text(encoding="utf-8")
 
+# db raw column names (before display rename)
+DB_COL_FRAME_TYPE = "frame_type"
+DB_COL_ATTRIBUTE = "attribute"
+
 # ui
 TITLE = "💳YUGIOH-FTS-VSS"
 ICON = "💳"

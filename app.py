@@ -30,6 +30,8 @@ from consts import (
     VSS_SQL,
     TITLE,
     ICON,
+    DB_COL_FRAME_TYPE,
+    DB_COL_ATTRIBUTE,
     COL_NAME,
     COL_FRAME_TYPE,
     COL_RACE,
@@ -256,20 +258,20 @@ else:
     df = st.session_state.raw_results.copy()
 
     # 検索結果に存在する値だけを選択肢として動的生成
-    available_types = sorted(df["frame_type"].dropna().unique().tolist())
-    available_attrs = sorted(df["attribute"].dropna().unique().tolist())
+    available_types = sorted(df[DB_COL_FRAME_TYPE].dropna().unique().tolist())
+    available_attrs = sorted(df[DB_COL_ATTRIBUTE].dropna().unique().tolist())
 
     filter_col1, filter_col2 = st.columns(2)
     selected_types = filter_col1.multiselect(LABEL_FILTER_FRAME_TYPE, available_types)
     selected_attrs = filter_col2.multiselect(LABEL_FILTER_ATTRIBUTE, available_attrs)
 
     if selected_types:
-        df = df[df["frame_type"].isin(selected_types)]
+        df = df[df[DB_COL_FRAME_TYPE].isin(selected_types)]
     if selected_attrs:
-        df = df[df["attribute"].isin(selected_attrs)]
+        df = df[df[DB_COL_ATTRIBUTE].isin(selected_attrs)]
 
-    df["frame_type"] = df["frame_type"].map(FRAME_TYPE_BADGE_MAP)
-    df["attribute"] = df["attribute"].map(ATTRIBUTE_BADGE_MAP)
+    df[DB_COL_FRAME_TYPE] = df[DB_COL_FRAME_TYPE].map(FRAME_TYPE_BADGE_MAP)
+    df[DB_COL_ATTRIBUTE] = df[DB_COL_ATTRIBUTE].map(ATTRIBUTE_BADGE_MAP)
     df.columns = DISPLAY_COLUMNS
 
     if df.empty:

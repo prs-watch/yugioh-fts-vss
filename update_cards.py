@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Tuple
 
 import duckdb
 from sudachipy import SplitMode, dictionary, tokenizer  # type: ignore
@@ -12,7 +11,7 @@ ROOT_DIR = Path(__file__).parent.resolve()
 PARQUET_PATH = ROOT_DIR / "tmp" / "cards.parquet"
 
 
-def init() -> Tuple[tokenizer.Tokenizer, SplitMode, SentenceTransformer]:
+def init() -> tuple[tokenizer.Tokenizer, SplitMode, SentenceTransformer]:
     """Sudachi トークナイザーと SentenceTransformer モデルを初期化する。"""
     dic = dictionary.Dictionary().create()
     mode = tokenizer.Tokenizer.SplitMode.C
@@ -21,21 +20,23 @@ def init() -> Tuple[tokenizer.Tokenizer, SplitMode, SentenceTransformer]:
     return dic, mode, model
 
 
-def main(dic: tokenizer.Tokenizer, mode: SplitMode, model: SentenceTransformer):
+def build_fts_text(text: object, dic: tokenizer.Tokenizer, mode: SplitMode) -> str:
+    if not isinstance(text, str):
+        return ""
+    return " ".join(
+        m.surface()
+        for m in dic.tokenize(text, mode)
+        if m.part_of_speech()[0] in FTS_ALLOW_TYPE
+    )
+
+
+def main(dic: tokenizer.Tokenizer, mode: SplitMode, model: SentenceTransformer) -> None:
     """データセットを取得し、FTS用テキストとエンベディングを付与して parquet に保存する。"""
     df = duckdb.read_parquet(DATASET_URL).to_df()
 
     # fts
-    df["fts_text"] = df["text_ja"].apply(
-        lambda x: (  # type: ignore
-            " ".join([
-                m.surface()
-                for m in dic.tokenize(x, mode)
-                if m.part_of_speech()[0] in FTS_ALLOW_TYPE
-            ])
-            if isinstance(x, str)
-            else ""
-        )
+    df["fts_text"] = df["text_ja"].apply(  # type: ignore[misc]
+        lambda x: build_fts_text(x, dic, mode)  # type: ignore[misc]
     )
 
     # vss
