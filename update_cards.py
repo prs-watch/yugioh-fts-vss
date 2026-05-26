@@ -14,29 +14,29 @@ PARQUET_PATH = ROOT_DIR / "tmp" / "cards.parquet"
 def init() -> tuple[tokenizer.Tokenizer, SplitMode, SentenceTransformer]:
     """Sudachi トークナイザーと SentenceTransformer モデルを初期化する。"""
     dic = dictionary.Dictionary().create()
-    mode = tokenizer.Tokenizer.SplitMode.C
+    split_mode = tokenizer.Tokenizer.SplitMode.C
     model = SentenceTransformer(MODEL_NAME)
 
-    return dic, mode, model
+    return dic, split_mode, model
 
 
-def build_fts_text(text: object, dic: tokenizer.Tokenizer, mode: SplitMode) -> str:
+def build_fts_text(text: object, dic: tokenizer.Tokenizer, split_mode: SplitMode) -> str:
     if not isinstance(text, str):
         return ""
     return " ".join(
         m.surface()
-        for m in dic.tokenize(text, mode)
+        for m in dic.tokenize(text, split_mode)
         if m.part_of_speech()[0] in FTS_ALLOW_TYPE
     )
 
 
-def main(dic: tokenizer.Tokenizer, mode: SplitMode, model: SentenceTransformer) -> None:
+def main(dic: tokenizer.Tokenizer, split_mode: SplitMode, model: SentenceTransformer) -> None:
     """データセットを取得し、FTS用テキストとエンベディングを付与して parquet に保存する。"""
     df = duckdb.read_parquet(DATASET_URL).to_df()
 
     # fts
     df["fts_text"] = df["text_ja"].apply(  # type: ignore[misc]
-        lambda x: build_fts_text(x, dic, mode)  # type: ignore[misc]
+        lambda x: build_fts_text(x, dic, split_mode)  # type: ignore[misc]
     )
 
     # vss
@@ -53,5 +53,5 @@ def main(dic: tokenizer.Tokenizer, mode: SplitMode, model: SentenceTransformer) 
 
 
 if __name__ == "__main__":
-    dic, mode, model = init()
-    main(dic, mode, model)
+    dic, split_mode, model = init()
+    main(dic, split_mode, model)

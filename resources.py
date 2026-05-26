@@ -19,10 +19,10 @@ def init() -> tuple[
     con.execute(INIT_VSS_SQL)
 
     dic = dictionary.Dictionary().create()
-    mode = tokenizer.Tokenizer.SplitMode.C
+    split_mode = tokenizer.Tokenizer.SplitMode.C
     model = SentenceTransformer(MODEL_NAME)
 
-    return con, dic, mode, model
+    return con, dic, split_mode, model
 
 
-con, dic, mode, model = init()
+con, dic, split_mode, model = init()

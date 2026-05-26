@@ -5,7 +5,7 @@ from sudachipy import MorphemeList  # type: ignore
 from torch import Tensor
 
 from consts import FTS_ALLOW_TYPE, FTS_SQL, VSS_SQL
-from resources import con, dic, mode, model
+from resources import con, dic, model, split_mode
 
 
 @lru_cache(maxsize=256)
@@ -15,20 +15,20 @@ def encode(q: str) -> Tensor:
 
 @lru_cache(maxsize=256)
 def tokenize(q: str) -> MorphemeList:
-    return dic.tokenize(q, mode)
+    return dic.tokenize(q, split_mode)
 
 
 def fts(tokens: MorphemeList, limit: int) -> DataFrame:
-    fts_q = " ".join(
+    fts_query = " ".join(
         t.surface() for t in tokens if t.part_of_speech()[0] in FTS_ALLOW_TYPE
     )
-    return con.sql(FTS_SQL, params={"q": fts_q, "limit": limit}).to_df()
+    return con.sql(FTS_SQL, params={"q": fts_query, "limit": limit}).to_df()
 
 
 def vss(q: str, limit: int) -> DataFrame:
-    vss_q = encode(q)
+    embedding = encode(q)
     return con.sql(
-        VSS_SQL, params={"text_q": q, "embedding_q": vss_q, "limit": limit}
+        VSS_SQL, params={"text_q": q, "embedding_q": embedding, "limit": limit}
     ).to_df()
 
 

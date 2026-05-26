@@ -64,7 +64,9 @@ def render_card(card: Series, card_id: int, image: bytes | None) -> None:  # typ
 def render_card_grid(df: DataFrame) -> None:
     card_ids = [cast(int, idx) for idx, _ in df.iterrows()]
     with ThreadPoolExecutor(max_workers=len(card_ids)) as executor:
-        images = dict(zip(card_ids, executor.map(get_image, [str(cid) for cid in card_ids])))
+        images = dict(
+            zip(card_ids, executor.map(get_image, [str(cid) for cid in card_ids]))
+        )
 
     for i in range(0, len(df), COLS_PER_ROW):
         cols = st.columns(COLS_PER_ROW)
