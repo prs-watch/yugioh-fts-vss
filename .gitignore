@@ -11,6 +11,9 @@ wheels/
 .venv
 .devcontainer
 
+# streamlit
+.streamlit/secrets.toml
+
 # vscode
 .vscode
 

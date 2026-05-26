@@ -1,6 +1,9 @@
+from typing import cast
+
 import streamlit as st
 from pandas import DataFrame, Series
 
+from components.image import get_image
 from consts import (
     COL_ATK,
     COL_ATTRIBUTE,
@@ -17,31 +20,42 @@ from consts import (
 )
 
 
-def render_card(card: Series) -> None:  # type: ignore[type-arg]
+def _build_stats(card: Series) -> list[str]:  # type: ignore[type-arg]
+    stats: list[str] = []
+    if card[COL_RACE] != DB_NULL:
+        stats.append(str(card[COL_RACE]))
+    if card[COL_LEVEL] != DB_NULL:
+        stats.append(f"Lv {card[COL_LEVEL]}")
+    if card[COL_ATK] != DB_NULL:
+        stats.append(f"ATK {card[COL_ATK]}")
+    if card[COL_DEF] != DB_NULL:
+        stats.append(f"DEF {card[COL_DEF]}")
+    if card[COL_SCALE] != DB_NULL:
+        stats.append(f"⚖{card[COL_SCALE]}")
+    if card[COL_LINK] != DB_NULL:
+        stats.append(f"LINK {card[COL_LINK]}")
+    return stats
+
+
+def render_card(card: Series, card_id: int) -> None:  # type: ignore[type-arg]
     with st.container(border=True):
-        st.markdown(f"**{card[COL_NAME]}**")
+        img_col, info_col = st.columns([1, 2])
 
-        col_type, col_attr = st.columns(2)
-        col_type.markdown(card[COL_FRAME_TYPE])
-        if DB_NULL not in card[COL_ATTRIBUTE]:
-            col_attr.markdown(card[COL_ATTRIBUTE])
+        image = get_image(str(card_id))
+        if image is not None:
+            img_col.image(image)
 
-        stats: list[str] = []
-        race = card[COL_RACE]
-        if race != DB_NULL:
-            stats.append(race)
-        if card[COL_LEVEL] != DB_NULL:
-            stats.append(f"Lv {card[COL_LEVEL]}")
-        if card[COL_ATK] != DB_NULL:
-            stats.append(f"ATK {card[COL_ATK]}")
-        if card[COL_DEF] != DB_NULL:
-            stats.append(f"DEF {card[COL_DEF]}")
-        if card[COL_SCALE] != DB_NULL:
-            stats.append(f"⚖{card[COL_SCALE]}")
-        if card[COL_LINK] != DB_NULL:
-            stats.append(f"LINK {card[COL_LINK]}")
-        if stats:
-            st.caption("  ·  ".join(str(s) for s in stats))
+        with info_col:
+            st.markdown(f"**{card[COL_NAME]}**")
+
+            col_type, col_attr = st.columns(2)
+            col_type.markdown(card[COL_FRAME_TYPE])
+            if DB_NULL not in card[COL_ATTRIBUTE]:
+                col_attr.markdown(card[COL_ATTRIBUTE])
+
+            stats = _build_stats(card)
+            if stats:
+                st.caption("  ·  ".join(stats))
 
         with st.expander(COL_TEXT):
             st.write(card[COL_TEXT])
@@ -50,6 +64,6 @@ def render_card(card: Series) -> None:  # type: ignore[type-arg]
 def render_card_grid(df: DataFrame) -> None:
     for i in range(0, len(df), COLS_PER_ROW):
         cols = st.columns(COLS_PER_ROW)
-        for col, (_, card) in zip(cols, df.iloc[i : i + COLS_PER_ROW].iterrows()):
+        for col, (card_id, card) in zip(cols, df.iloc[i : i + COLS_PER_ROW].iterrows()):
             with col:
-                render_card(card)
+                render_card(card, cast(int, card_id))

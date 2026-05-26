@@ -63,6 +63,7 @@ if st.session_state.raw_results is None:
     st.info(LABEL_SEARCH_PLACEHOLDER)
 else:
     df = st.session_state.raw_results.copy()
+    df = df.set_index("id")
 
     # 検索結果に存在する値だけを選択肢として動的生成
     available_types = sorted(df[DB_COL_FRAME_TYPE].dropna().unique().tolist())

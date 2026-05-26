@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 # common
@@ -22,6 +23,9 @@ DB_COL_ATTRIBUTE = "attribute"
 
 # null sentinel used in parquet data
 DB_NULL = "ー"
+
+# image
+IMAGE_BASE_URL = os.environ.get("IMAGE_BASE_URL", "http://localhost:8787")
 
 # ui
 TITLE = "💳YUGIOH-FTS-VSS"

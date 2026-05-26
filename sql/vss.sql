@@ -45,6 +45,7 @@ SELECT
 FROM merged
 )
 SELECT
+    id,
     name_ja,
     frame_type,
     COALESCE(race, 'ー') AS race,

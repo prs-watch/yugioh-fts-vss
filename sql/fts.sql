@@ -9,6 +9,7 @@ AND text_ja <> ''
 ),
 raw AS (
 SELECT
+    id,
     name_ja,
     frame_type,
     COALESCE(race, 'ー') AS race,
