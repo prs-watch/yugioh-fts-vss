@@ -4,10 +4,12 @@ import os
 import time
 
 import requests
+import streamlit as st
 
 from consts import IMAGE_BASE_URL
 
 
+@st.cache_data(ttl=86400)
 def get_image(card_id: str) -> bytes | None:
     secret = os.environ.get("IMAGE_SIGNING_SECRET", "dev-secret")
     exp = str(int(time.time()) + 300)

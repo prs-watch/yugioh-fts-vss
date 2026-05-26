@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from typing import cast
 
 import streamlit as st
@@ -37,11 +38,10 @@ def _build_stats(card: Series) -> list[str]:  # type: ignore[type-arg]
     return stats
 
 
-def render_card(card: Series, card_id: int) -> None:  # type: ignore[type-arg]
+def render_card(card: Series, card_id: int, image: bytes | None) -> None:  # type: ignore[type-arg]
     with st.container(border=True):
         img_col, info_col = st.columns([1, 2])
 
-        image = get_image(str(card_id))
         if image is not None:
             img_col.image(image)
 
@@ -62,8 +62,12 @@ def render_card(card: Series, card_id: int) -> None:  # type: ignore[type-arg]
 
 
 def render_card_grid(df: DataFrame) -> None:
+    card_ids = [cast(int, idx) for idx, _ in df.iterrows()]
+    with ThreadPoolExecutor(max_workers=len(card_ids)) as executor:
+        images = dict(zip(card_ids, executor.map(get_image, [str(cid) for cid in card_ids])))
+
     for i in range(0, len(df), COLS_PER_ROW):
         cols = st.columns(COLS_PER_ROW)
         for col, (card_id, card) in zip(cols, df.iloc[i : i + COLS_PER_ROW].iterrows()):
             with col:
-                render_card(card, cast(int, card_id))
+                render_card(card, cast(int, card_id), images.get(cast(int, card_id)))
