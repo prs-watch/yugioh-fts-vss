@@ -19,6 +19,7 @@ dev = [
     "pandas-stubs>=3.0.0.260204",
     "pyright>=1.1.409",
     "ruff>=0.15.13",
+    "torchvision>=0.27.0",
 ]
 
 [tool.pyright]

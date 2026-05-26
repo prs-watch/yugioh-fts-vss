@@ -20,6 +20,9 @@ VSS_SQL = (SQL_DIR / "vss.sql").read_text(encoding="utf-8")
 DB_COL_FRAME_TYPE = "frame_type"
 DB_COL_ATTRIBUTE = "attribute"
 
+# null sentinel used in parquet data
+DB_NULL = "ー"
+
 # ui
 TITLE = "💳YUGIOH-FTS-VSS"
 ICON = "💳"
@@ -44,6 +47,8 @@ LABEL_FILTER_FRAME_TYPE = "カード種で絞り込み"
 LABEL_FILTER_ATTRIBUTE = "属性で絞り込み"
 LABEL_RESULT_COUNT = "{} 件"
 LABEL_NO_RESULTS = "絞り込み条件に一致するカードがありません。"
+
+COLS_PER_ROW = 3
 
 DISPLAY_COLUMNS = [
     COL_NAME,
