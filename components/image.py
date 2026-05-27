@@ -1,3 +1,5 @@
+"""カード画像の取得と署名付き URL 生成。"""
+
 import hashlib
 import hmac
 import os
@@ -11,6 +13,14 @@ from consts import IMAGE_BASE_URL
 
 @st.cache_data(ttl=86400)
 def get_image(card_id: str) -> bytes | None:
+    """署名付き URL でカード画像を取得する（24時間キャッシュ）。
+
+    Args:
+        card_id: 取得するカードの ID 文字列。
+
+    Returns:
+        画像のバイト列。取得失敗時は None。
+    """
     secret = os.environ.get("IMAGE_SIGNING_SECRET", "dev-secret")
     exp = str(int(time.time()) + 300)
     sig = hmac.new(

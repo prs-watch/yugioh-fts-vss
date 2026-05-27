@@ -1,3 +1,5 @@
+"""Streamlit キャッシュを利用したリソース（DuckDB・Sudachi・SentenceTransformer）初期化。"""
+
 import duckdb
 import streamlit as st
 from sentence_transformers import SentenceTransformer
@@ -13,6 +15,11 @@ def init() -> tuple[
     SplitMode,
     SentenceTransformer,
 ]:
+    """DuckDB・Sudachi・SentenceTransformer を初期化して返す。
+
+    Returns:
+        (DuckDB コネクション, Sudachi トークナイザー, 分割モード, SentenceTransformer モデル) のタプル。
+    """
     con = duckdb.connect()
     con.execute(INIT_TABLE_SQL)
     con.execute(INIT_FTS_SQL)

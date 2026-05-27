@@ -1,3 +1,5 @@
+"""カード情報を表示する Streamlit コンポーネント。"""
+
 from concurrent.futures import ThreadPoolExecutor
 from typing import cast
 
@@ -22,6 +24,14 @@ from consts import (
 
 
 def _build_stats(card: Series) -> list[str]:  # type: ignore[type-arg]
+    """カードのステータス文字列リストを構築する。
+
+    Args:
+        card: カード情報を持つ Series。
+
+    Returns:
+        種族・レベル・ATK・DEF などのステータス文字列リスト。
+    """
     stats: list[str] = []
     if card[COL_RACE] != DB_NULL:
         stats.append(str(card[COL_RACE]))
@@ -39,6 +49,13 @@ def _build_stats(card: Series) -> list[str]:  # type: ignore[type-arg]
 
 
 def render_card(card: Series, card_id: int, image: bytes | None) -> None:  # type: ignore[type-arg]
+    """1枚のカードをコンテナに描画する。
+
+    Args:
+        card: カード情報を持つ Series。
+        card_id: カード ID。
+        image: カード画像のバイト列。None の場合は画像を表示しない。
+    """
     with st.container(border=True):
         img_col, info_col = st.columns([1, 2])
 
@@ -62,6 +79,11 @@ def render_card(card: Series, card_id: int, image: bytes | None) -> None:  # typ
 
 
 def render_card_grid(df: DataFrame) -> None:
+    """カード一覧をグリッドレイアウトで描画する。
+
+    Args:
+        df: 表示するカード情報の DataFrame。
+    """
     card_ids = [cast(int, idx) for idx, _ in df.iterrows()]
     with ThreadPoolExecutor(max_workers=len(card_ids)) as executor:
         images = dict(

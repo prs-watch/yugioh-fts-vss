@@ -1,3 +1,5 @@
+"""アプリ全体に適用するグローバル CSS スタイル。"""
+
 import streamlit as st
 
 _CSS = """
@@ -23,4 +25,5 @@ button[kind='secondary'] {
 
 
 def apply_global_styles() -> None:
+    """グローバル CSS を Streamlit に注入する。"""
     st.markdown(f"<style>{_CSS}</style>", unsafe_allow_html=True)

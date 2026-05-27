@@ -1,3 +1,5 @@
+"""アプリ全体で使用する定数定義。"""
+
 import os
 from pathlib import Path
 

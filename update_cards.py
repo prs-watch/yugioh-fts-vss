@@ -1,3 +1,5 @@
+"""データセットの取得・前処理・parquet 保存パイプライン。"""
+
 from pathlib import Path
 
 import duckdb
@@ -12,7 +14,11 @@ PARQUET_PATH = ROOT_DIR / "tmp" / "cards.parquet"
 
 
 def init() -> tuple[tokenizer.Tokenizer, SplitMode, SentenceTransformer]:
-    """Sudachi トークナイザーと SentenceTransformer モデルを初期化する。"""
+    """Sudachi トークナイザーと SentenceTransformer モデルを初期化する。
+
+    Returns:
+        (Sudachi トークナイザー, 分割モード, SentenceTransformer モデル) のタプル。
+    """
     dic = dictionary.Dictionary().create()
     split_mode = tokenizer.Tokenizer.SplitMode.C
     model = SentenceTransformer(MODEL_NAME)
@@ -21,6 +27,16 @@ def init() -> tuple[tokenizer.Tokenizer, SplitMode, SentenceTransformer]:
 
 
 def build_fts_text(text: object, dic: tokenizer.Tokenizer, split_mode: SplitMode) -> str:
+    """テキストを形態素解析して FTS 用スペース区切り文字列に変換する。
+
+    Args:
+        text: 解析対象のテキスト。str 以外は空文字を返す。
+        dic: Sudachi トークナイザー。
+        split_mode: 形態素分割モード。
+
+    Returns:
+        名詞・動詞・形容詞をスペースで結合した FTS 用文字列。
+    """
     if not isinstance(text, str):
         return ""
     return " ".join(
@@ -31,7 +47,13 @@ def build_fts_text(text: object, dic: tokenizer.Tokenizer, split_mode: SplitMode
 
 
 def main(dic: tokenizer.Tokenizer, split_mode: SplitMode, model: SentenceTransformer) -> None:
-    """データセットを取得し、FTS用テキストとエンベディングを付与して parquet に保存する。"""
+    """データセットを取得し、FTS用テキストとエンベディングを付与して parquet に保存する。
+
+    Args:
+        dic: Sudachi トークナイザー。
+        split_mode: 形態素分割モード。
+        model: エンベディング生成モデル。
+    """
     df = duckdb.read_parquet(DATASET_URL).to_df()
 
     # fts
