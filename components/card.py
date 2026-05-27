@@ -48,12 +48,11 @@ def _build_stats(card: Series) -> list[str]:  # type: ignore[type-arg]
     return stats
 
 
-def render_card(card: Series, card_id: int, image: bytes | None) -> None:  # type: ignore[type-arg]
+def render_card(card: Series, image: bytes | None) -> None:  # type: ignore[type-arg]
     """1枚のカードをコンテナに描画する。
 
     Args:
         card: カード情報を持つ Series。
-        card_id: カード ID。
         image: カード画像のバイト列。None の場合は画像を表示しない。
     """
     with st.container(border=True):
@@ -61,6 +60,8 @@ def render_card(card: Series, card_id: int, image: bytes | None) -> None:  # typ
 
         if image is not None:
             img_col.image(image)
+        else:
+            img_col.markdown("🎴")
 
         with info_col:
             st.markdown(f"**{card[COL_NAME]}**")
@@ -85,7 +86,7 @@ def render_card_grid(df: DataFrame) -> None:
         df: 表示するカード情報の DataFrame。
     """
     card_ids = [cast(int, idx) for idx, _ in df.iterrows()]
-    with ThreadPoolExecutor(max_workers=len(card_ids)) as executor:
+    with ThreadPoolExecutor(max_workers=len(card_ids) or 1) as executor:
         images = dict(
             zip(card_ids, executor.map(get_image, [str(cid) for cid in card_ids]))
         )
@@ -94,4 +95,4 @@ def render_card_grid(df: DataFrame) -> None:
         cols = st.columns(COLS_PER_ROW)
         for col, (card_id, card) in zip(cols, df.iloc[i : i + COLS_PER_ROW].iterrows()):
             with col:
-                render_card(card, cast(int, card_id), images.get(cast(int, card_id)))
+                render_card(card, images.get(cast(int, card_id)))

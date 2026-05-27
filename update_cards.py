@@ -26,7 +26,9 @@ def init() -> tuple[tokenizer.Tokenizer, SplitMode, SentenceTransformer]:
     return dic, split_mode, model
 
 
-def build_fts_text(text: object, dic: tokenizer.Tokenizer, split_mode: SplitMode) -> str:
+def build_fts_text(
+    text: object, dic: tokenizer.Tokenizer, split_mode: SplitMode
+) -> str:
     """テキストを形態素解析して FTS 用スペース区切り文字列に変換する。
 
     Args:
@@ -46,7 +48,9 @@ def build_fts_text(text: object, dic: tokenizer.Tokenizer, split_mode: SplitMode
     )
 
 
-def main(dic: tokenizer.Tokenizer, split_mode: SplitMode, model: SentenceTransformer) -> None:
+def main(
+    dic: tokenizer.Tokenizer, split_mode: SplitMode, model: SentenceTransformer
+) -> None:
     """データセットを取得し、FTS用テキストとエンベディングを付与して parquet に保存する。
 
     Args:

@@ -42,6 +42,7 @@ apply_global_styles()
 
 # header
 st.title(TITLE)
+st.caption("遊戯王OCGカード 全文検索（FTS）+ ベクトル類似度検索（VSS）")
 
 # session state
 if "raw_results" not in st.session_state:
@@ -53,8 +54,11 @@ if "form_key" not in st.session_state:
 with st.form(f"form_{st.session_state.form_key}"):
     q_col, limit_col, button_col = st.columns([3, 1, 1], vertical_alignment="bottom")
 
-    q = q_col.text_input(LABEL_SEARCH_INPUT)
-    limit = limit_col.slider(LABEL_LIMIT, 0, 20, 10)
+    q = q_col.text_input(
+        LABEL_SEARCH_INPUT,
+        help="FTS（全文検索）または VSS（ベクトル類似度検索）でカードを検索します。OOV（辞書未登録語）を含む場合は FTS、すべて既知語の場合は VSS を使用します。",
+    )
+    limit = limit_col.slider(LABEL_LIMIT, 1, 20, 10)
     with button_col:
         submitted = st.form_submit_button(LABEL_SUBMIT, type="primary")
 
@@ -73,7 +77,9 @@ else:
     available_types = sorted(df[DB_COL_FRAME_TYPE].dropna().unique().tolist())
     available_attrs = sorted(df[DB_COL_ATTRIBUTE].dropna().unique().tolist())
 
-    filter_col1, filter_col2, clear_col = st.columns([2, 2, 1], vertical_alignment="bottom")
+    filter_col1, filter_col2, clear_col = st.columns(
+        [2, 2, 1], vertical_alignment="bottom"
+    )
     selected_types = filter_col1.multiselect(LABEL_FILTER_FRAME_TYPE, available_types)
     selected_attrs = filter_col2.multiselect(LABEL_FILTER_ATTRIBUTE, available_attrs)
     with clear_col:
@@ -94,5 +100,5 @@ else:
     if df.empty:
         st.info(LABEL_NO_RESULTS)
     else:
-        st.caption(LABEL_RESULT_COUNT.format(len(df)))
+        st.markdown(f"**{LABEL_RESULT_COUNT.format(len(df))}**")
         render_card_grid(df)

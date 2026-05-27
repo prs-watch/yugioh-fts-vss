@@ -8,12 +8,6 @@ button[title='View fullscreen'],
 button[aria-label='Fullscreen'],
 .stImage button { display: none !important; }
 
-[data-testid='stFormSubmitButton'] button {
-    background-color: #1E88E5 !important;
-    border-color: #1E88E5 !important;
-    color: white !important;
-}
-
 [data-testid='stButton'] button,
 [data-testid='baseButton-secondary'],
 button[kind='secondary'] {
