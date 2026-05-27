@@ -23,7 +23,6 @@ from consts import (
     LABEL_CLEAR,
     LABEL_FILTER_ATTRIBUTE,
     LABEL_FILTER_FRAME_TYPE,
-    LABEL_LIMIT,
     LABEL_NO_RESULTS,
     LABEL_RESULT_COUNT,
     LABEL_SEARCH_INPUT,
@@ -52,19 +51,18 @@ if "form_key" not in st.session_state:
 
 # form
 with st.form(f"form_{st.session_state.form_key}"):
-    q_col, limit_col, button_col = st.columns([3, 1, 1], vertical_alignment="bottom")
+    q_col, button_col = st.columns([3, 1], vertical_alignment="bottom")
 
     q = q_col.text_input(
         LABEL_SEARCH_INPUT,
         help="FTS（全文検索）または VSS（ベクトル類似度検索）でカードを検索します。OOV（辞書未登録語）を含む場合は FTS、すべて既知語の場合は VSS を使用します。",
     )
-    limit = limit_col.slider(LABEL_LIMIT, 1, 20, 10)
     with button_col:
         submitted = st.form_submit_button(LABEL_SUBMIT, type="primary")
 
 if submitted and q:
     with st.spinner(LABEL_SEARCHING):
-        st.session_state.raw_results = search(q, limit)
+        st.session_state.raw_results = search(q)
 
 # filter + result
 if st.session_state.raw_results is None:

@@ -6,7 +6,7 @@ from pandas import DataFrame
 from sudachipy import MorphemeList  # type: ignore
 from torch import Tensor
 
-from consts import FTS_ALLOW_TYPE, FTS_SQL, VSS_SQL
+from consts import FTS_ALLOW_TYPE, FTS_SQL, MAX_RESULTS, VSS_SQL
 from resources import con, dic, model, split_mode
 
 
@@ -36,12 +36,11 @@ def tokenize(q: str) -> MorphemeList:
     return dic.tokenize(q, split_mode)
 
 
-def fts(tokens: MorphemeList, limit: int) -> DataFrame:
+def fts(tokens: MorphemeList) -> DataFrame:
     """トークンリストを使って BM25 全文検索を実行する。
 
     Args:
         tokens: Sudachi でトークナイズ済みの形態素リスト。
-        limit: 返却する最大件数。
 
     Returns:
         検索結果 DataFrame。
@@ -49,31 +48,29 @@ def fts(tokens: MorphemeList, limit: int) -> DataFrame:
     fts_query = " ".join(
         t.surface() for t in tokens if t.part_of_speech()[0] in FTS_ALLOW_TYPE
     )
-    return con.sql(FTS_SQL, params={"q": fts_query, "limit": limit}).to_df()
+    return con.sql(FTS_SQL, params={"q": fts_query, "limit": MAX_RESULTS}).to_df()
 
 
-def vss(q: str, limit: int) -> DataFrame:
+def vss(q: str) -> DataFrame:
     """クエリのエンベディングを使ってコサイン類似度検索を実行する。
 
     Args:
         q: 検索クエリ文字列。
-        limit: 返却する最大件数。
 
     Returns:
         検索結果 DataFrame。
     """
     embedding = encode(q)
     return con.sql(
-        VSS_SQL, params={"text_q": q, "embedding_q": embedding, "limit": limit}
+        VSS_SQL, params={"text_q": q, "embedding_q": embedding, "limit": MAX_RESULTS}
     ).to_df()
 
 
-def search(q: str, limit: int = 10) -> DataFrame:
+def search(q: str) -> DataFrame:
     """OOV の有無に応じて FTS と VSS を切り替えて検索する。
 
     Args:
         q: 検索クエリ文字列。
-        limit: 返却する最大件数。デフォルトは 10。
 
     Returns:
         検索結果 DataFrame。
@@ -81,5 +78,5 @@ def search(q: str, limit: int = 10) -> DataFrame:
     tokens = tokenize(q)
     # OOVが含まれる場合はFTS(BM25)、すべて既知語ならVSS(コサイン類似度)
     if any(t.is_oov() for t in tokens):
-        return fts(tokens, limit)
-    return vss(q, limit)
+        return fts(tokens)
+    return vss(q)

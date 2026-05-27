@@ -44,8 +44,9 @@ COL_SCALE = "スケール"
 COL_LINK = "リンク"
 COL_TEXT = "テキスト"
 
+MAX_RESULTS = 100
+
 LABEL_SEARCH_INPUT = "FTS / VSS検索"
-LABEL_LIMIT = "件数"
 LABEL_SUBMIT = "実行"
 LABEL_CLEAR = "クリア"
 LABEL_SEARCHING = "検索中..."
