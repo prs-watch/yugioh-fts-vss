@@ -7,8 +7,13 @@ import time
 
 import requests
 import streamlit as st
+from requests.adapters import HTTPAdapter
 
 from consts import IMAGE_BASE_URL
+
+_session = requests.Session()
+_session.mount("http://", HTTPAdapter(pool_maxsize=128))
+_session.mount("https://", HTTPAdapter(pool_maxsize=128))
 
 
 @st.cache_data(ttl=86400)
@@ -27,7 +32,7 @@ def get_image(card_id: str) -> bytes | None:
         secret.encode(), f"{card_id}:{exp}".encode(), hashlib.sha256
     ).hexdigest()
     url = f"{IMAGE_BASE_URL}/card/{card_id}?exp={exp}&sig={sig}"
-    resp = requests.get(url, timeout=5)
+    resp = _session.get(url, timeout=5)
     if resp.ok:
         return resp.content
     return None

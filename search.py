@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 
+import streamlit as st
 from pandas import DataFrame
 from sudachipy import MorphemeList  # type: ignore
 from torch import Tensor
@@ -66,6 +67,7 @@ def vss(q: str) -> DataFrame:
     ).to_df()
 
 
+@st.cache_data(ttl=3600)
 def search(q: str) -> DataFrame:
     """OOV の有無に応じて FTS と VSS を切り替えて検索する。
 

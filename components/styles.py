@@ -15,6 +15,19 @@ button[kind='secondary'] {
     border-color: #adb5bd !important;
     color: white !important;
 }
+
+.card-img-loading {
+    width: 48px;
+    height: 48px;
+    margin: 20px auto;
+    border: 4px solid #e9ecef;
+    border-top-color: #adb5bd;
+    border-radius: 50%;
+    animation: card-spin 0.8s linear infinite;
+}
+@keyframes card-spin {
+    to { transform: rotate(360deg); }
+}
 """
 
 
