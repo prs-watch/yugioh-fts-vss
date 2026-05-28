@@ -20,6 +20,7 @@ from consts import (
     DISPLAY_COLUMNS,
     FRAME_TYPE_BADGE_MAP,
     ICON,
+    LABEL_CAPTION,
     LABEL_CLEAR,
     LABEL_FILTER_ATTRIBUTE,
     LABEL_FILTER_FRAME_TYPE,
@@ -41,7 +42,7 @@ apply_global_styles()
 
 # header
 st.title(TITLE)
-st.caption("遊戯王OCGカード 全文検索（FTS）+ ベクトル類似度検索（VSS）")
+st.caption(LABEL_CAPTION)
 
 # session state
 if "raw_results" not in st.session_state:
@@ -55,7 +56,6 @@ with st.form(f"form_{st.session_state.form_key}"):
 
     q = q_col.text_input(
         LABEL_SEARCH_INPUT,
-        help="FTS（全文検索）または VSS（ベクトル類似度検索）でカードを検索します。OOV（辞書未登録語）を含む場合は FTS、すべて既知語の場合は VSS を使用します。",
     )
     with button_col:
         submitted = st.form_submit_button(LABEL_SUBMIT, type="primary")

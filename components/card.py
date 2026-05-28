@@ -5,6 +5,7 @@ from typing import cast
 
 import streamlit as st
 from pandas import DataFrame, Series
+from streamlit.delta_generator import DeltaGenerator
 
 from components.image import get_image
 from consts import (
@@ -24,14 +25,7 @@ from consts import (
 
 
 def _build_stats(card: Series) -> list[str]:  # type: ignore[type-arg]
-    """カードのステータス文字列リストを構築する。
-
-    Args:
-        card: カード情報を持つ Series。
-
-    Returns:
-        種族・レベル・ATK・DEF などのステータス文字列リスト。
-    """
+    """種族・レベル・ATK・DEF などのステータス文字列リストを構築する。"""
     stats: list[str] = []
     if card[COL_RACE] != DB_NULL:
         stats.append(str(card[COL_RACE]))
@@ -48,20 +42,15 @@ def _build_stats(card: Series) -> list[str]:  # type: ignore[type-arg]
     return stats
 
 
-def render_card(card: Series) -> st.delta_generator.DeltaGenerator:  # type: ignore[type-arg]
-    """1枚のカードをコンテナに描画し、画像プレースホルダーを返す。
-
-    Args:
-        card: カード情報を持つ Series。
-
-    Returns:
-        画像を後から埋めるための DeltaGenerator プレースホルダー。
-    """
+def _render_card(card: Series) -> DeltaGenerator:  # type: ignore[type-arg]
+    """1枚のカードをコンテナに描画し、画像プレースホルダーを返す。"""
     with st.container(border=True):
         img_col, info_col = st.columns([1, 2])
 
         img_placeholder = img_col.empty()
-        img_placeholder.markdown('<div class="card-img-loading"></div>', unsafe_allow_html=True)
+        img_placeholder.markdown(
+            '<div class="card-img-loading"></div>', unsafe_allow_html=True
+        )
 
         with info_col:
             st.markdown(f"**{card[COL_NAME]}**")
@@ -82,25 +71,19 @@ def render_card(card: Series) -> st.delta_generator.DeltaGenerator:  # type: ign
 
 
 def render_card_grid(df: DataFrame) -> None:
-    """カード一覧をグリッドレイアウトで描画する。
-
-    Args:
-        df: 表示するカード情報の DataFrame。
-    """
+    """カード一覧をグリッドレイアウトで描画する。"""
     # 第1パス: 全カードを即時描画（画像はプレースホルダー）
-    placeholders: dict[int, st.delta_generator.DeltaGenerator] = {}
+    placeholders: dict[int, DeltaGenerator] = {}
     for i in range(0, len(df), COLS_PER_ROW):
         cols = st.columns(COLS_PER_ROW)
         for col, (card_id, card) in zip(cols, df.iloc[i : i + COLS_PER_ROW].iterrows()):
             with col:
-                placeholders[cast(int, card_id)] = render_card(card)
+                placeholders[cast(int, card_id)] = _render_card(card)
 
     # 第2パス: 画像を並列取得し、到着順にプレースホルダーへ埋める
     card_ids = list(placeholders.keys())
     with ThreadPoolExecutor(max_workers=len(card_ids) or 1) as executor:
-        futures = {
-            executor.submit(get_image, str(cid)): cid for cid in card_ids
-        }
+        futures = {executor.submit(get_image, str(cid)): cid for cid in card_ids}
         for future in as_completed(futures):
             cid = futures[future]
             image = future.result()

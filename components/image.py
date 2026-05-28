@@ -18,14 +18,7 @@ _session.mount("https://", HTTPAdapter(pool_maxsize=128))
 
 @st.cache_data(ttl=86400)
 def get_image(card_id: str) -> bytes | None:
-    """署名付き URL でカード画像を取得する（24時間キャッシュ）。
-
-    Args:
-        card_id: 取得するカードの ID 文字列。
-
-    Returns:
-        画像のバイト列。取得失敗時は None。
-    """
+    """署名付き URL でカード画像を取得する（24時間キャッシュ）。"""
     secret = os.environ.get("IMAGE_SIGNING_SECRET", "dev-secret")
     exp = str(int(time.time()) + 300)
     sig = hmac.new(

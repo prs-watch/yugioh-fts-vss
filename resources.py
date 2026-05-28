@@ -15,11 +15,7 @@ def init() -> tuple[
     SplitMode,
     SentenceTransformer,
 ]:
-    """DuckDB・Sudachi・SentenceTransformer を初期化して返す。
-
-    Returns:
-        (DuckDB コネクション, Sudachi トークナイザー, 分割モード, SentenceTransformer モデル) のタプル。
-    """
+    """DuckDB・Sudachi・SentenceTransformer を初期化して返す。"""
     con = duckdb.connect()
     con.execute(INIT_TABLE_SQL)
     con.execute(INIT_FTS_SQL)

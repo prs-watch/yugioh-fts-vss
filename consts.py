@@ -46,6 +46,7 @@ COL_TEXT = "テキスト"
 
 MAX_RESULTS = 100
 
+LABEL_CAPTION = "カード名・効果テキストの言葉で検索できます。入力内容に応じてキーワード検索とAI意味検索を自動で切り替えます。"
 LABEL_SEARCH_INPUT = "FTS / VSS検索"
 LABEL_SUBMIT = "実行"
 LABEL_CLEAR = "クリア"
