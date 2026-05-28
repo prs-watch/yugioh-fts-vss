@@ -20,7 +20,24 @@ DuckDB の FTS (全文検索) と VSS (ベクトル類似度検索) を組み合
 - **[SentenceTransformers](https://www.sbert.net/)** — `paraphrase-multilingual-MiniLM-L12-v2` でクエリをベクトルに変換
 - **[Streamlit](https://streamlit.io/)** — Web UI
 
+### 動作環境
+
+- Python 3.14 以上
+
+### SQL ファイル構成
+
+`sql/` ディレクトリに全クエリを外部化している。
+
+| ファイル | 役割 |
+|---------|------|
+| `init_table.sql` | カードテーブルの作成と `embeddings` カラムの型定義 |
+| `init_fts.sql` | FTS インデックスの初期化 |
+| `init_vss.sql` | VSS (HNSW) インデックスの初期化 |
+| `fts.sql` | BM25 全文検索クエリ |
+| `vss.sql` | コサイン類似度ベクトル検索クエリ |
+
 ### セットアップ
+
 
 ```bash
 # 依存パッケージのインストール
@@ -38,6 +55,18 @@ uv run streamlit run app.py
 ```
 
 ブラウザで `http://localhost:8501` を開く。
+
+### カード画像
+
+カード画像は外部 API から署名付き URL で取得する。
+
+| 環境変数 | デフォルト値 | 説明 |
+|---------|------------|------|
+| `IMAGE_BASE_URL` | `http://localhost:8787` | カード画像 API のベース URL |
+| `IMAGE_SIGNING_SECRET` | `dev-secret` | HMAC-SHA256 署名の秘密鍵 |
+
+本番環境では `.streamlit/secrets.toml` に設定する。
+画像は 24 時間キャッシュされ、グリッド表示時に並列取得する。
 
 ### 検索項目
 
